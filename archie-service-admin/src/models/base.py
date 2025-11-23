@@ -7,7 +7,7 @@ issues that can occur when models try to import Base from __init__.py.
 
 Usage:
     from models.base import Base
-    
+
     class MyModel(Base):
         __tablename__ = 'my_table'
         ...
