@@ -52,9 +52,9 @@ Blueprint Registration:
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from flask import Blueprint, make_response, request, jsonify
+from flask import Blueprint, make_response, request, jsonify, Response
 
 # Import service layer for business logic delegation
 from ..services.figma_service import FigmaService
@@ -203,11 +203,25 @@ def require_authentication(func: Callable) -> Callable:
             )
 
         # Store user in request context for route handlers to access
-        request.current_user = user
+        # Using setattr to avoid mypy attribute-defined errors
+        setattr(request, 'current_user', user)
 
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def _get_request_user() -> Dict[str, Any]:
+    """
+    Safely get current user from request context.
+    
+    This helper function retrieves the current_user attribute that was set by
+    the require_authentication decorator. Uses getattr to avoid mypy errors.
+    
+    :return: Dictionary with user information (user_id, etc.)
+    :rtype: Dict[str, Any]
+    """
+    return getattr(request, 'current_user', {})
 
 
 def _error_response(
@@ -333,7 +347,7 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
     :return: Tuple of (response dict, status code)
     :rtype: Tuple[Dict[str, Any], int]
     """
-    logger.info(f"POST /installations - User: {request.current_user.get('user_id')}")
+    logger.info(f"POST /installations - User: {_get_request_user().get('user_id')}")
 
     try:
         # Extract and validate request data
@@ -372,7 +386,7 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
         # Service handles: PAT storage, transaction management, error handling
         service = FigmaService()
         installation = service.create_installation(
-            user_id=request.current_user['user_id'],
+            user_id=_get_request_user()['user_id'],
             name=name,
             pat=pat,
             description=description,
@@ -441,7 +455,7 @@ def get_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
     :rtype: Tuple[Dict[str, Any], int]
     """
     logger.info(
-        f"GET /installations/{installation_id} - User: {request.current_user.get('user_id')}"
+        f"GET /installations/{installation_id} - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -525,7 +539,7 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
     :rtype: Tuple[Dict[str, Any], int]
     """
     logger.info(
-        f"PUT /installations/{installation_id}/pat - User: {request.current_user.get('user_id')}"
+        f"PUT /installations/{installation_id}/pat - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -554,7 +568,7 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
         updated_installation = service.update_pat(
             installation_id=installation_id,
             new_pat=new_pat,
-            user_id=request.current_user['user_id']
+            user_id=_get_request_user()['user_id']
         )
 
         logger.info(f"Successfully updated PAT for installation {installation_id}")
@@ -590,7 +604,7 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
 @figma_blueprint.route('/installations/<int:installation_id>', methods=['DELETE'])
 @require_feature_flag
 @require_authentication
-def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def delete_installation(installation_id: int) -> Union[Tuple[Dict[str, Any], int], Response]:
     """
     Soft delete Figma installation and remove PAT from Secret Manager.
 
@@ -612,11 +626,11 @@ def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
     :param installation_id: ID of installation to delete
     :type installation_id: int
-    :return: Tuple of (response dict, status code)
-    :rtype: Tuple[Dict[str, Any], int]
+    :return: Tuple of (response dict, status code) or Response object
+    :rtype: Union[Tuple[Dict[str, Any], int], Response]
     """
     logger.info(
-        f"DELETE /installations/{installation_id} - User: {request.current_user.get('user_id')}"
+        f"DELETE /installations/{installation_id} - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -625,7 +639,7 @@ def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
         service = FigmaService()
         success = service.delete_installation(
             installation_id=installation_id,
-            user_id=request.current_user['user_id']
+            user_id=_get_request_user()['user_id']
         )
 
         if success:
@@ -704,7 +718,7 @@ def list_installations() -> Tuple[Dict[str, Any], int]:
     :return: Tuple of (response dict, status code)
     :rtype: Tuple[Dict[str, Any], int]
     """
-    logger.info(f"GET /installations - User: {request.current_user.get('user_id')}")
+    logger.info(f"GET /installations - User: {_get_request_user().get('user_id')}")
 
     try:
         # Extract optional query parameters
@@ -781,7 +795,7 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
     :rtype: Tuple[Dict[str, Any], int]
     """
     logger.info(
-        f"POST /installations/{installation_id}/share - User: {request.current_user.get('user_id')}"
+        f"POST /installations/{installation_id}/share - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -818,7 +832,7 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
         access_grant = service.share_installation(
             installation_id=installation_id,
             target_user_id=target_user_id,
-            requesting_user_id=request.current_user['user_id'],
+            requesting_user_id=_get_request_user()['user_id'],
             access_level=access_level
         )
 
@@ -856,7 +870,7 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
 @figma_blueprint.route('/installations/<int:installation_id>/share', methods=['DELETE'])
 @require_feature_flag
 @require_authentication
-def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def revoke_access(installation_id: int) -> Union[Tuple[Dict[str, Any], int], Response]:
     """
     Revoke user access to Figma installation.
 
@@ -881,11 +895,11 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
     :param installation_id: ID of installation
     :type installation_id: int
-    :return: Tuple of (response dict, status code)
-    :rtype: Tuple[Dict[str, Any], int]
+    :return: Tuple of (response dict, status code) or Response object
+    :rtype: Union[Tuple[Dict[str, Any], int], Response]
     """
     logger.info(
-        f"DELETE /installations/{installation_id}/share - User: {request.current_user.get('user_id')}"
+        f"DELETE /installations/{installation_id}/share - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -973,7 +987,7 @@ def list_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
     :rtype: Tuple[Dict[str, Any], int]
     """
     logger.info(
-        f"GET /installations/{installation_id}/access - User: {request.current_user.get('user_id')}"
+        f"GET /installations/{installation_id}/access - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -1038,7 +1052,7 @@ def validate_frame() -> Tuple[Dict[str, Any], int]:
     :return: Tuple of (response dict, status code)
     :rtype: Tuple[Dict[str, Any], int]
     """
-    logger.info(f"POST /frames/validate - User: {request.current_user.get('user_id')}")
+    logger.info(f"POST /frames/validate - User: {_get_request_user().get('user_id')}")
 
     try:
         # Extract and validate request data
@@ -1136,7 +1150,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
     :return: Tuple of (response dict, status code)
     :rtype: Tuple[Dict[str, Any], int]
     """
-    logger.info(f"POST /attachments - User: {request.current_user.get('user_id')}")
+    logger.info(f"POST /attachments - User: {_get_request_user().get('user_id')}")
 
     try:
         # Extract and validate request data
@@ -1182,7 +1196,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
             project_id=project_id,
             installation_id=installation_id,
             frames=frames,
-            created_by=request.current_user['user_id'],
+            created_by=_get_request_user()['user_id'],
             tech_spec_id=tech_spec_id
         )
 
@@ -1242,7 +1256,7 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
     :return: Tuple of (response dict, status code)
     :rtype: Tuple[Dict[str, Any], int]
     """
-    logger.info(f"GET /attachments - User: {request.current_user.get('user_id')}")
+    logger.info(f"GET /attachments - User: {_get_request_user().get('user_id')}")
 
     try:
         # Extract and validate query parameters
@@ -1318,7 +1332,7 @@ def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
     :rtype: Tuple[Dict[str, Any], int]
     """
     logger.info(
-        f"GET /attachments/{attachment_id} - User: {request.current_user.get('user_id')}"
+        f"GET /attachments/{attachment_id} - User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -1357,7 +1371,7 @@ def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
 @figma_blueprint.route('/attachments/<int:attachment_id>', methods=['DELETE'])
 @require_feature_flag
 @require_authentication
-def delete_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
+def delete_attachment(attachment_id: int) -> Union[Tuple[Dict[str, Any], int], Response]:
     """
     Soft delete Figma attachment.
 
@@ -1374,11 +1388,11 @@ def delete_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
 
     :param attachment_id: ID of attachment to delete
     :type attachment_id: int
-    :return: Tuple of (response dict, status code)
-    :rtype: Tuple[Dict[str, Any], int]
+    :return: Tuple of (response dict, status code) or Response object
+    :rtype: Union[Tuple[Dict[str, Any], int], Response]
     """
     logger.info(
-        f"DELETE /attachments/{attachment_id} - User: {request.current_user.get('user_id')}"
+        f"DELETE /attachments/{attachment_id} - User: {_get_request_user().get('user_id')}"
     )
 
     try:
