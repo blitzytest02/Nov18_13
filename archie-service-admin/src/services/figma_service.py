@@ -107,13 +107,17 @@ class FigmaService:
         This design pattern keeps route handlers simple (they just create FigmaService())
         while enabling comprehensive testing through fake repository injection.
 
-        :param figma_repo: Repository for database operations (optional, defaults to FigmaRepository)
+        :param figma_repo: Repository for database operations
+            (optional, defaults to FigmaRepository)
         :type figma_repo: Optional[IFigmaRepository]
-        :param secret_repo: Repository for Secret Manager operations (optional, defaults to SecretRepository)
+        :param secret_repo: Repository for Secret Manager operations
+            (optional, defaults to SecretRepository)
         :type secret_repo: Optional[ISecretRepository]
-        :param figma_api_repo: Repository for Figma API calls (optional, defaults to FigmaAPIRepository)
+        :param figma_api_repo: Repository for Figma API calls
+            (optional, defaults to FigmaAPIRepository)
         :type figma_api_repo: Optional[IFigmaAPIRepository]
-        :param config_repo: Repository for configuration access (optional, defaults to ConfigRepository)
+        :param config_repo: Repository for configuration access
+            (optional, defaults to ConfigRepository)
         :type config_repo: Optional[IConfigRepository]
 
         Example:
@@ -163,21 +167,27 @@ class FigmaService:
         # Check if user owns any installations - this indicates admin-level privileges
         # Users who can create installations have the authority to share them
         user_installations = self.figma_repo.list_installations(user_id=user_id)
-        
+
         if user_installations:
             # User owns installations, grant ADMIN role
-            logger.debug(f"User {user_id} has {len(user_installations)} installations, granting ADMIN role")
+            logger.debug(
+                f"User {user_id} has {len(user_installations)} "
+                f"installations, granting ADMIN role"
+            )
             return "ADMIN"
-        
+
         # Additionally check if user owns the specific installation being shared
         # This handles cases where the repository might filter differently
         if team_id:
             team_installations = self.figma_repo.list_installations(team_id=team_id)
             for installation in team_installations:
                 if installation.user_id == user_id:
-                    logger.debug(f"User {user_id} owns installation in team {team_id}, granting ADMIN role")
+                    logger.debug(
+                        f"User {user_id} owns installation in team {team_id}, "
+                        f"granting ADMIN role"
+                    )
                     return "ADMIN"
-        
+
         # User has no installations and doesn't own any team installations
         logger.debug(f"User {user_id} has no installations, role: MEMBER")
         return "MEMBER"
@@ -292,7 +302,8 @@ class FigmaService:
             except Exception as secret_error:
                 # Secret Manager operation failed - rollback database changes
                 logger.error(
-                    f"Failed to store PAT in Secret Manager for installation {installation.id}: {secret_error}",
+                    f"Failed to store PAT in Secret Manager for "
+                    f"installation {installation.id}: {secret_error}",
                     exc_info=True,
                 )
                 # Rollback: Delete the installation that was just created
@@ -312,8 +323,14 @@ class FigmaService:
                 "name": installation.name,
                 "description": installation.description,
                 "status": installation.status,
-                "created_at": installation.created_at.isoformat() if installation.created_at else None,
-                "updated_at": installation.updated_at.isoformat() if installation.updated_at else None,
+                "created_at": (
+                    installation.created_at.isoformat()
+                    if installation.created_at else None
+                ),
+                "updated_at": (
+                    installation.updated_at.isoformat()
+                    if installation.updated_at else None
+                ),
             }
 
         except Exception as e:
@@ -759,7 +776,8 @@ class FigmaService:
         # Why here: This is business logic that determines who can share integrations
         # The role check queries teams and teammembers tables per requirement A.2.3
         try:
-            # Type cast to satisfy mypy - SQLAlchemy models return Column types but values are Python types at runtime
+            # Type cast to satisfy mypy - SQLAlchemy models return Column types
+            # but values are Python types at runtime
             team_id_value: Optional[int] = installation.team_id  # type: ignore[assignment]
             user_role = self._check_user_role(requesting_user_id, team_id_value)
             if user_role not in ['ADMIN', 'SUPER_ADMIN']:
@@ -1021,8 +1039,14 @@ class FigmaService:
             ...     project_id=100,
             ...     installation_id=42,
             ...     frames=[
-            ...         {"url": "https://figma.com/file/ABC?node-id=1:2", "description": "Login"},
-            ...         {"url": "https://figma.com/file/ABC?node-id=3:4", "description": "Dashboard"}
+            ...         {
+            ...             "url": "https://figma.com/file/ABC?node-id=1:2",
+            ...             "description": "Login"
+            ...         },
+            ...         {
+            ...             "url": "https://figma.com/file/ABC?node-id=3:4",
+            ...             "description": "Dashboard"
+            ...         }
             ...     ],
             ...     created_by=123
             ... )
@@ -1278,48 +1302,50 @@ class FigmaService:
         # we can determine which installation(s) are being used.
         try:
             attachments = self.figma_repo.list_attachments(project_id)
-            
+
             if not attachments:
                 logger.info(f"No Figma attachments found for project {project_id}")
                 return None
-            
+
             # Get the installation from the first attachment
-            # Why first: If multiple installations are used, return the most commonly used one
-            # or the first one found. This provides a functional default behavior.
-            # Type cast to satisfy mypy - SQLAlchemy models return Column types but values are Python types at runtime
+            # Why first: If multiple installations are used, return the most
+            # commonly used one or the first one found. This provides a
+            # functional default behavior.
+            # Type cast to satisfy mypy - SQLAlchemy models return Column types
+            # but values are Python types at runtime
             installation_id: int = attachments[0].figma_installation_id  # type: ignore[assignment]
-            
+
             logger.debug(
                 f"Found installation {installation_id} for project {project_id} "
                 f"via {len(attachments)} attachment(s)"
             )
-            
+
             # Retrieve installation details
             installation = self.figma_repo.get_installation(installation_id)
-            
+
             if not installation:
                 logger.error(
                     f"Installation {installation_id} referenced by project {project_id} "
                     f"not found or deleted"
                 )
                 return None
-            
+
             # Retrieve PAT from Secret Manager
             # CRITICAL: This is for internal use only - PAT is included in response
             secret_name = f"figma-secret-{installation.id}"
             pat = self.secret_repo.get_secret(secret_name)
-            
+
             if not pat:
                 logger.error(
                     f"Secret {secret_name} not found for installation {installation.id}"
                 )
                 return None
-            
+
             logger.info(
                 f"Successfully retrieved installation {installation.id} with PAT "
                 f"for project {project_id}"
             )
-            
+
             # Return installation metadata INCLUDING the actual PAT
             # Security: This method is for internal services only
             return {
@@ -1337,11 +1363,10 @@ class FigmaService:
                 if installation.updated_at
                 else None,
             }
-            
+
         except Exception as e:
             logger.error(
                 f"Error retrieving installation for project {project_id}: {e}",
                 exc_info=True,
             )
             raise
-
