@@ -227,7 +227,7 @@ class FigmaRepository(IFigmaRepository):
                 setattr(installation, key, value)
 
         # Explicitly update the updated_at timestamp
-        installation.updated_at = datetime.utcnow()
+        installation.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
         # Flush changes to database without committing
         self.db.flush()
@@ -266,7 +266,7 @@ class FigmaRepository(IFigmaRepository):
         if not installation:
             return False
 
-        installation.deleted_at = datetime.utcnow()
+        installation.deleted_at = datetime.utcnow()  # type: ignore[assignment]
         self.db.flush()
 
         return True
@@ -419,7 +419,7 @@ class FigmaRepository(IFigmaRepository):
 
         # Revoke all matching active grants (should typically be just one)
         for access in access_grants:
-            access.deleted_at = datetime.utcnow()
+            access.deleted_at = datetime.utcnow()  # type: ignore[assignment]
 
         self.db.flush()
         return True
@@ -519,11 +519,11 @@ class FigmaRepository(IFigmaRepository):
 
         if existing:
             # Update existing attachment (idempotent behavior)
-            existing.figma_installation_id = installation_id
-            existing.frame_title = frame_title
-            existing.description = description
-            existing.tech_spec_id = tech_spec_id
-            existing.updated_at = datetime.utcnow()
+            existing.figma_installation_id = installation_id  # type: ignore[assignment]
+            existing.frame_title = frame_title  # type: ignore[assignment]
+            existing.description = description  # type: ignore[assignment]
+            existing.tech_spec_id = tech_spec_id  # type: ignore[assignment]
+            existing.updated_at = datetime.utcnow()  # type: ignore[assignment]
             # Note: created_by is NOT updated - preserves original creator
             self.db.flush()
             return existing
@@ -640,7 +640,7 @@ class FigmaRepository(IFigmaRepository):
         if not attachment:
             return False
 
-        attachment.deleted_at = datetime.utcnow()
+        attachment.deleted_at = datetime.utcnow()  # type: ignore[assignment]
         self.db.flush()
 
         return True
