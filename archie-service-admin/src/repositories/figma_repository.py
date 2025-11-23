@@ -51,6 +51,7 @@ from .interfaces.i_figma_repository import IFigmaRepository
 from ..models.figma_installation import FigmaInstallation
 from ..models.figma_installation_access import FigmaInstallationAccess
 from ..models.figma_attachment import FigmaAttachment
+from ..database import get_db_session
 
 
 class FigmaRepository(IFigmaRepository):
@@ -77,7 +78,7 @@ class FigmaRepository(IFigmaRepository):
     :type db: Session
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Optional[Session] = None):
         """
         Initialize FigmaRepository with a database session.
 
@@ -85,21 +86,30 @@ class FigmaRepository(IFigmaRepository):
         context). The repository does not commit or rollback transactions - it
         delegates that responsibility to the service layer to enable coordination
         with external systems like Secret Manager.
+        
+        If no session is provided, a new session is created using get_db_session().
+        This enables simple instantiation in production while allowing explicit
+        session injection for testing and transaction management.
 
-        :param db: SQLAlchemy Session for database operations (required)
-        :type db: Session
+        :param db: SQLAlchemy Session for database operations (optional)
+        :type db: Optional[Session]
 
         Usage Example:
             ```python
             from sqlalchemy.orm import Session
-
-            # In service layer or request handler
+            
+            # Production: Use default session
+            figma_repo = FigmaRepository()
+            
+            # Testing or explicit session management
             session = get_db_session()
             figma_repo = FigmaRepository(session)
             installation = figma_repo.create_installation(...)
             ```
         """
-        self.db = db
+        # Use provided session or create a new one
+        self.db = db if db is not None else get_db_session()
+        self._owns_session = db is None  # Track if we created the session
 
     # ============================================================================
     # Figma Installation Operations
