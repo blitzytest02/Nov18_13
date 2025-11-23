@@ -759,7 +759,9 @@ class FigmaService:
         # Why here: This is business logic that determines who can share integrations
         # The role check queries teams and teammembers tables per requirement A.2.3
         try:
-            user_role = self._check_user_role(requesting_user_id, installation.team_id)
+            # Type cast to satisfy mypy - SQLAlchemy models return Column types but values are Python types at runtime
+            team_id_value: Optional[int] = installation.team_id  # type: ignore[assignment]
+            user_role = self._check_user_role(requesting_user_id, team_id_value)
             if user_role not in ['ADMIN', 'SUPER_ADMIN']:
                 logger.warning(
                     f"User {requesting_user_id} with role {user_role} attempted to share "
@@ -1284,7 +1286,8 @@ class FigmaService:
             # Get the installation from the first attachment
             # Why first: If multiple installations are used, return the most commonly used one
             # or the first one found. This provides a functional default behavior.
-            installation_id = attachments[0].figma_installation_id
+            # Type cast to satisfy mypy - SQLAlchemy models return Column types but values are Python types at runtime
+            installation_id: int = attachments[0].figma_installation_id  # type: ignore[assignment]
             
             logger.debug(
                 f"Found installation {installation_id} for project {project_id} "
