@@ -12,7 +12,7 @@ Available Interfaces:
     - ISecretRepository: Google Cloud Secret Manager operations
     - IFigmaAPIRepository: Figma API client operations
     - IFigmaRepository: Database operations for Figma entities (to be implemented)
-    - IConfigRepository: Application configuration access (to be implemented)
+    - IConfigRepository: Application configuration access
 
 Usage Pattern:
     Services should depend on these interfaces, not concrete implementations:
@@ -21,10 +21,12 @@ Usage Pattern:
         def __init__(
             self,
             secret_repo: ISecretRepository,
-            figma_api_repo: IFigmaAPIRepository
+            figma_api_repo: IFigmaAPIRepository,
+            config_repo: IConfigRepository
         ):
             self.secret_repo = secret_repo
             self.figma_api_repo = figma_api_repo
+            self.config_repo = config_repo
 
 Testing Pattern:
     Tests inject fake implementations:
@@ -32,8 +34,17 @@ Testing Pattern:
     def test_service():
         fake_secret_repo = FakeSecretRepository()
         fake_figma_api = FakeFigmaAPIRepository()
-        service = FigmaService(fake_secret_repo, fake_figma_api)
+        fake_config = FakeConfigRepository()
+        service = FigmaService(fake_secret_repo, fake_figma_api, fake_config)
         # Test service logic...
 """
 
-__all__ = []
+from .i_secret_repository import ISecretRepository
+from .i_figma_api_repository import IFigmaAPIRepository
+from .i_config_repository import IConfigRepository
+
+__all__ = [
+    'ISecretRepository',
+    'IFigmaAPIRepository',
+    'IConfigRepository',
+]
