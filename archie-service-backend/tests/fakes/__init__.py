@@ -50,7 +50,7 @@ Basic usage in test files::
         # Setup fake dependencies
         fake_client = FakeAdminClient()
         fake_config = FakeConfigRepository.with_figma_enabled()
-        
+
         # Configure successful response from admin service
         fake_client.set_success({
             'id': 1,
@@ -59,17 +59,17 @@ Basic usage in test files::
             'pat_status': 'Active',
             'created_at': '2024-01-01T00:00:00Z'
         })
-        
+
         # Use in route handler or service
         response = fake_client.post('/v1/figma/installations', json={
             'name': 'Test Installation',
             'description': 'Test description',
             'pat': 'figd_test_token_12345'
         })
-        
+
         assert response.status_code == 201
         assert response.json()['name'] == 'Test Installation'
-        
+
         # Verify request tracking
         assert fake_client.request_count == 1
         assert fake_client.last_request[0] == 'POST'
@@ -78,7 +78,7 @@ Basic usage in test files::
         '''Test that endpoints reject requests when feature disabled.'''
         # Use factory method for specific configuration
         fake_config = FakeConfigRepository.with_figma_disabled()
-        
+
         assert fake_config.get_bool('FIGMA_INTEGRATION_ENABLED') is False
         # Route handlers should check this flag and return appropriate error
 
@@ -86,7 +86,7 @@ Basic usage in test files::
         '''Test timeout handling when admin service is slow.'''
         fake_client = FakeAdminClient()
         fake_client.simulate_timeout()
-        
+
         # Next request will raise TimeoutError
         try:
             response = fake_client.get('/v1/figma/installations/1')
