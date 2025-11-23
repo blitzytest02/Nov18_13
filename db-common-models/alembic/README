@@ -1,0 +1,355 @@
+# Alembic Database Migrations
+
+## Purpose
+
+This directory contains Alembic database migration scripts for the db-common-models package. Alembic is a lightweight database migration tool for SQLAlchemy that allows you to manage database schema changes in a version-controlled, reproducible manner.
+
+**IMPORTANT**: This is the ONLY migrations folder to be used. The legacy `migration` folder should be ignored completely per project requirements (C.2).
+
+## What's Inside
+
+- `env.py` - Alembic environment configuration that runs migrations
+- `script.py.mako` - Template for generating new migration scripts
+- `versions/` - Directory containing all migration scripts in chronological order
+
+## Database Schema Context
+
+This package manages database models for multiple services including:
+- User and team management tables
+- Project and technical specification tables
+- GitHub integration tables (github_installation, github_installation_access)
+- **Figma integration tables** (figma_installation, figma_installation_access, figma_attachment)
+
+Each migration in the versions/ folder represents a specific database schema change with upgrade and downgrade paths.
+
+## Prerequisites
+
+Before working with migrations, ensure you have:
+
+1. **Database Connection**: Set the database URL in your environment
+   ```bash
+   export DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+   ```
+
+2. **Alembic Installed**: Install via project dependencies
+   ```bash
+   pip install alembic
+   # or if using poetry/pyproject.toml
+   poetry install
+   ```
+
+3. **SQLAlchemy Models**: All model changes must be reflected in the models before generating migrations
+
+## Generating New Migrations
+
+### Automatic Migration Generation (Recommended)
+
+Alembic can auto-detect model changes and generate migration scripts:
+
+```bash
+# From the db-common-models root directory
+alembic revision --autogenerate -m "Brief description of changes"
+```
+
+**Example for Figma Integration**:
+```bash
+alembic revision --autogenerate -m "Add Figma integration tables"
+```
+
+This will:
+1. Compare current database schema with SQLAlchemy models
+2. Generate a new migration script in `alembic/versions/`
+3. Include upgrade() and downgrade() functions
+
+### Manual Migration Generation
+
+For complex changes requiring custom logic:
+
+```bash
+alembic revision -m "Description of manual changes"
+```
+
+Then edit the generated file in `alembic/versions/` to add your custom SQL or SQLAlchemy operations.
+
+### Best Practices for Migration Generation
+
+1. **One Logical Change Per Migration**: Don't mix unrelated schema changes
+2. **Descriptive Messages**: Use clear, concise migration messages
+   - ✅ Good: "Add figma_installation table with indexes"
+   - ❌ Bad: "Update db" or "Changes"
+3. **Review Auto-generated Code**: Always review auto-generated migrations before applying
+4. **Test Downgrade Path**: Ensure the downgrade() function correctly reverses changes
+5. **Include Indexes**: Don't forget to add indexes for foreign keys and frequently queried columns
+
+## Applying Migrations
+
+### Upgrade to Latest Version
+
+Apply all pending migrations:
+
+```bash
+alembic upgrade head
+```
+
+### Upgrade to Specific Version
+
+Apply migrations up to a specific revision:
+
+```bash
+alembic upgrade <revision_id>
+```
+
+Example:
+```bash
+alembic upgrade ae1072a47785
+```
+
+### Check Current Version
+
+See which migration is currently applied:
+
+```bash
+alembic current
+```
+
+### View Migration History
+
+See all available migrations:
+
+```bash
+alembic history
+```
+
+View verbose history with details:
+
+```bash
+alembic history --verbose
+```
+
+## Rolling Back Migrations
+
+### Downgrade One Version
+
+Roll back the most recent migration:
+
+```bash
+alembic downgrade -1
+```
+
+### Downgrade to Specific Version
+
+Roll back to a specific revision:
+
+```bash
+alembic downgrade <revision_id>
+```
+
+### Downgrade All Migrations
+
+Roll back to the initial state (empty database):
+
+```bash
+alembic downgrade base
+```
+
+**WARNING**: Downgrading can result in data loss. Always backup your database before rolling back migrations, especially in production.
+
+## Migration Workflow Example
+
+Complete workflow for adding new Figma tables:
+
+```bash
+# 1. Update SQLAlchemy models (e.g., add FigmaInstallation model)
+# 2. Generate migration
+alembic revision --autogenerate -m "Add figma_installation table"
+
+# 3. Review generated migration file
+# Edit alembic/versions/YYYYMMDDHHMMSS_add_figma_installation_table.py
+# Verify upgrade() and downgrade() functions are correct
+
+# 4. Apply migration to development database
+alembic upgrade head
+
+# 5. Test the migration
+# - Verify tables created correctly
+# - Test application functionality
+# - Test rollback works: alembic downgrade -1
+
+# 6. If rollback successful, re-apply
+alembic upgrade head
+
+# 7. Commit migration file to version control
+git add alembic/versions/YYYYMMDDHHMMSS_add_figma_installation_table.py
+git commit -m "Add Figma installation table migration"
+```
+
+## Figma Integration Tables
+
+The following tables were added to support Figma integration functionality:
+
+### figma_installation
+Stores Figma integration metadata (PATs stored in Google Secret Manager, not in DB).
+
+**Columns**:
+- `id` (BIGINT, PRIMARY KEY): Auto-generated installation identifier
+- `user_id` (BIGINT, NOT NULL): Owner of the Figma integration
+- `team_id` (BIGINT, NULLABLE): Optional team association
+- `name` (VARCHAR(255), NOT NULL): Installation name
+- `description` (TEXT, NULLABLE): Optional description
+- `status` (VARCHAR(50)): Installation status (active, expired, disabled)
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+- `deleted_at` (TIMESTAMP, NULLABLE): Soft delete timestamp
+
+**Indexes**:
+- `idx_figma_installation_user` on `user_id`
+- `idx_figma_installation_team` on `team_id`
+- `idx_figma_installation_deleted` on `deleted_at`
+
+### figma_installation_access
+Role-based access control for sharing Figma integrations between users.
+
+**Columns**:
+- `id` (BIGINT, PRIMARY KEY)
+- `figma_installation_id` (BIGINT, NOT NULL): Reference to figma_installation
+- `user_id` (BIGINT, NOT NULL): User granted access
+- `access_level` (VARCHAR(50)): Access level (viewer, editor, admin)
+- `granted_by` (BIGINT, NOT NULL): Admin who granted access
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+- `deleted_at` (TIMESTAMP, NULLABLE): Soft delete timestamp
+
+**Indexes**:
+- `idx_figma_access_installation` on `figma_installation_id`
+- `idx_figma_access_user` on `user_id`
+- `idx_figma_access_deleted` on `deleted_at`
+
+**Unique Constraint**: `(figma_installation_id, user_id, deleted_at)` to prevent duplicate active access grants.
+
+### figma_attachment
+Lightweight storage for Figma frame URLs attached to projects (no file downloads).
+
+**Columns**:
+- `id` (BIGINT, PRIMARY KEY)
+- `project_id` (BIGINT, NOT NULL): Reference to projects table
+- `tech_spec_id` (BIGINT, NULLABLE): Optional reference to tech_specs
+- `figma_installation_id` (BIGINT, NOT NULL): Reference to figma_installation
+- `frame_url` (TEXT, NOT NULL): Figma frame URL
+- `frame_title` (VARCHAR(500), NULLABLE): Frame title from Figma API
+- `description` (TEXT, NULLABLE): User-provided description
+- `created_by` (BIGINT, NOT NULL): User who created attachment
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+- `deleted_at` (TIMESTAMP, NULLABLE): Soft delete timestamp
+
+**Indexes**:
+- `idx_figma_attachment_project` on `project_id`
+- `idx_figma_attachment_techspec` on `tech_spec_id`
+- `idx_figma_attachment_installation` on `figma_installation_id`
+- `idx_figma_attachment_deleted` on `deleted_at`
+
+**Unique Constraint**: `(project_id, frame_url, deleted_at)` to prevent duplicate frame URLs per project.
+
+## Common Issues and Troubleshooting
+
+### Issue: "Target database is not up to date"
+
+**Cause**: Database has migrations applied that are not in your local versions/ folder.
+
+**Solution**: 
+```bash
+# Pull latest migrations from version control
+git pull origin main
+# Try upgrade again
+alembic upgrade head
+```
+
+### Issue: "Can't locate revision identified by 'XXXX'"
+
+**Cause**: Migration file is missing or database has inconsistent state.
+
+**Solution**:
+```bash
+# Check which migrations exist
+alembic history
+# Check current database version
+alembic current
+# If needed, manually update alembic_version table or restore missing migration file
+```
+
+### Issue: "FAILED: Multiple head revisions are present"
+
+**Cause**: Concurrent development created branching migration history.
+
+**Solution**:
+```bash
+# Merge the heads into a single migration
+alembic merge heads -m "Merge migration branches"
+# Apply the merge migration
+alembic upgrade head
+```
+
+### Issue: Auto-generated migration is incorrect or incomplete
+
+**Cause**: Alembic's auto-detection has limitations with certain schema changes.
+
+**Solution**:
+1. Review the generated migration file carefully
+2. Edit the upgrade() and downgrade() functions manually
+3. Test thoroughly before applying
+
+### Issue: Migration fails due to existing data
+
+**Cause**: Schema change conflicts with existing data (e.g., adding NOT NULL column to populated table).
+
+**Solution**:
+1. Add the column as nullable first
+2. Backfill data with appropriate values
+3. Alter the column to NOT NULL in a subsequent migration
+
+Or use a data migration:
+```python
+def upgrade():
+    # Add nullable column
+    op.add_column('table_name', sa.Column('new_column', sa.String(), nullable=True))
+    
+    # Backfill data
+    connection = op.get_bind()
+    connection.execute("UPDATE table_name SET new_column = 'default_value' WHERE new_column IS NULL")
+    
+    # Make NOT NULL
+    op.alter_column('table_name', 'new_column', nullable=False)
+```
+
+## Production Migration Checklist
+
+Before applying migrations to production:
+
+- [ ] Migration tested successfully in development environment
+- [ ] Migration tested successfully in staging environment
+- [ ] Downgrade path tested and verified to work
+- [ ] Database backup created
+- [ ] Estimated migration duration determined (for downtime planning)
+- [ ] Rollback plan documented and ready
+- [ ] Team notified of maintenance window (if downtime required)
+- [ ] Migration applied during low-traffic period
+- [ ] Application health verified after migration
+- [ ] Database performance monitored post-migration
+
+## Additional Resources
+
+- **Alembic Documentation**: https://alembic.sqlalchemy.org/
+- **SQLAlchemy Documentation**: https://docs.sqlalchemy.org/
+- **Migration Best Practices**: https://alembic.sqlalchemy.org/en/latest/tutorial.html
+
+## Support
+
+For questions or issues with migrations:
+1. Check this README first
+2. Review Alembic documentation
+3. Consult with the database team or senior engineers
+4. Check project-specific documentation in `docs/` folder
+
+---
+
+**Remember**: Always test migrations in development before applying to production, and always have a rollback plan ready.
