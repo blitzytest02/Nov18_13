@@ -37,7 +37,7 @@ try:
     )
 except ImportError:
     # Fall back to absolute import (when used standalone or in tests)
-    from services.admin_client import (  # type: ignore[no-redef]
+    from services.admin_client import (  # type: ignore[import-not-found, no-redef]  # noqa
         AdminClient,  # type: ignore[no-redef]
         AdminServiceConnectionError,  # type: ignore[no-redef]
         AdminServiceError,  # type: ignore[no-redef]
@@ -1206,7 +1206,7 @@ def list_attachments() -> Tuple[Any, int]:
 
         # Forward request to admin service
         admin_client = get_admin_client()
-        result = admin_client.list_figma_attachments(project_id, tech_spec_id, user_context)
+        result = admin_client.list_figma_attachments(query_params, user_context)
 
         logger.info(
             "Successfully retrieved %s Figma attachments for project_id=%s",
