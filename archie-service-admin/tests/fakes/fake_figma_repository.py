@@ -116,7 +116,7 @@ class FakeFigmaRepository(IFigmaRepository):
     # Figma Installation Operations
     # ============================================================================
     
-    def create_installation(
+    def create_installation(  # type: ignore[override]
         self,
         user_id: int,
         name: str,
@@ -155,7 +155,7 @@ class FakeFigmaRepository(IFigmaRepository):
         self._installations[installation_id] = installation
         return deepcopy(installation)
     
-    def get_installation(self, installation_id: int) -> Optional[Dict[str, Any]]:
+    def get_installation(self, installation_id: int) -> Optional[Dict[str, Any]]:  # type: ignore[override]
         """
         Retrieve installation by ID, excluding soft-deleted records.
         
@@ -172,7 +172,7 @@ class FakeFigmaRepository(IFigmaRepository):
         
         return deepcopy(installation)
     
-    def update_installation(
+    def update_installation(  # type: ignore[override]
         self,
         installation_id: int,
         **kwargs
@@ -226,7 +226,7 @@ class FakeFigmaRepository(IFigmaRepository):
         installation['deleted_at'] = datetime.utcnow()
         return True
     
-    def list_installations(
+    def list_installations(  # type: ignore[override]
         self,
         user_id: Optional[int] = None,
         team_id: Optional[int] = None
@@ -270,7 +270,7 @@ class FakeFigmaRepository(IFigmaRepository):
     # Figma Installation Access Control Operations
     # ============================================================================
     
-    def grant_access(
+    def grant_access(  # type: ignore[override]
         self,
         installation_id: int,
         user_id: int,
@@ -343,7 +343,7 @@ class FakeFigmaRepository(IFigmaRepository):
         
         return revoked
     
-    def list_access(self, installation_id: int) -> List[Dict[str, Any]]:
+    def list_access(self, installation_id: int) -> List[Dict[str, Any]]:  # type: ignore[override]
         """
         List all active access grants for installation.
         
@@ -366,7 +366,7 @@ class FakeFigmaRepository(IFigmaRepository):
     # Figma Attachment Operations
     # ============================================================================
     
-    def create_attachment(
+    def create_attachment(  # type: ignore[override]
         self,
         project_id: int,
         installation_id: int,
@@ -438,7 +438,7 @@ class FakeFigmaRepository(IFigmaRepository):
             self._attachments[attachment_id] = attachment
             return deepcopy(attachment)
     
-    def get_attachment(self, attachment_id: int) -> Optional[Dict[str, Any]]:
+    def get_attachment(self, attachment_id: int) -> Optional[Dict[str, Any]]:  # type: ignore[override]
         """
         Retrieve attachment by ID, excluding soft-deleted records.
         
@@ -455,7 +455,7 @@ class FakeFigmaRepository(IFigmaRepository):
         
         return deepcopy(attachment)
     
-    def list_attachments(
+    def list_attachments(  # type: ignore[override]
         self,
         project_id: int,
         tech_spec_id: Optional[int] = None
