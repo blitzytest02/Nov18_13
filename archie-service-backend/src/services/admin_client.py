@@ -17,7 +17,11 @@ from typing import Dict, Optional, Any, List, Union, cast
 from urllib.parse import urljoin
 
 import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError as RequestsConnectionError
+from requests.exceptions import (
+    RequestException,
+    Timeout,
+    ConnectionError as RequestsConnectionError
+)
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +35,12 @@ class AdminServiceError(Exception):
     communication with the admin service fails.
     """
 
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Optional[Dict] = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        details: Optional[Dict] = None
+    ):
         """
         Initialize AdminServiceError.
 
@@ -76,9 +85,15 @@ class AdminClient:
         client = AdminClient(admin_url="http://admin-service:8000", timeout=30)
 
         user_context = {"user_id": 123, "auth_token": "..."}
-        installation_data = {"name": "My Figma", "pat": "figd_...", "description": "..."}
+        installation_data = {
+            "name": "My Figma",
+            "pat": "figd_...",
+            "description": "..."
+        }
 
-        result = client.create_figma_installation(installation_data, user_context)
+        result = client.create_figma_installation(
+            installation_data, user_context
+        )
     """
 
     def __init__(
@@ -91,10 +106,13 @@ class AdminClient:
         """
         Initialize AdminClient with configuration.
 
-        :param admin_url: Base URL of archie-service-admin (e.g., 'http://admin-service:8000')
+        :param admin_url: Base URL of archie-service-admin
+            (e.g., 'http://admin-service:8000')
         :param timeout: Request timeout in seconds (default: 30)
-        :param max_retries: Maximum number of retry attempts for transient failures (default: 3)
-        :param retry_backoff: Initial backoff delay in seconds, doubles with each retry (default: 1.0)
+        :param max_retries: Maximum number of retry attempts for
+            transient failures (default: 3)
+        :param retry_backoff: Initial backoff delay in seconds,
+            doubles with each retry (default: 1.0)
         """
         self.admin_url = admin_url.rstrip('/')
         self.timeout = timeout
@@ -102,16 +120,21 @@ class AdminClient:
         self.retry_backoff = retry_backoff
         self.session = requests.Session()
 
-        logger.info("AdminClient initialized with admin_url=%s, timeout=%s", self.admin_url, self.timeout)
+        logger.info(
+            "AdminClient initialized with admin_url=%s, timeout=%s",
+            self.admin_url,
+            self.timeout
+        )
 
     def _build_headers(self, user_context: Dict[str, Any]) -> Dict[str, str]:
         """
         Build HTTP headers with user context for admin service requests.
 
-        Propagates user authentication and authorization context from the backend
-        gateway to the admin service via HTTP headers.
+        Propagates user authentication and authorization context from the
+        backend gateway to the admin service via HTTP headers.
 
-        :param user_context: Dictionary containing user_id, auth tokens, and other context
+        :param user_context: Dictionary containing user_id, auth tokens,
+            and other context
         :return: Dictionary of HTTP headers
         """
         headers = {
@@ -165,7 +188,13 @@ class AdminClient:
 
         while attempt < self.max_retries:
             try:
-                logger.debug("Making %s request to %s (attempt %d/%d)", method, url, attempt + 1, self.max_retries)
+                logger.debug(
+                    "Making %s request to %s (attempt %d/%d)",
+                    method,
+                    url,
+                    attempt + 1,
+                    self.max_retries
+                )
 
                 response = self.session.request(
                     method=method,
@@ -185,7 +214,11 @@ class AdminClient:
                     try:
                         return response.json()
                     except json.JSONDecodeError as e:
-                        logger.error("Failed to decode JSON response from admin service: %s", e)
+                        logger.error(
+                            "Failed to decode JSON response from admin "
+                            "service: %s",
+                            e
+                        )
                         raise AdminServiceError(
                             "Invalid JSON response from admin service",
                             status_code=response.status_code
@@ -198,11 +231,16 @@ class AdminClient:
                 except json.JSONDecodeError:
                     error_data = {"message": response.text}
 
-                error_message = error_data.get('error', {}).get('message', error_data.get('message', 'Unknown error'))
+                error_message = error_data.get('error', {}).get(
+                    'message', error_data.get('message', 'Unknown error')
+                )
 
                 logger.error(
-                    "Admin service returned error: status=%s, message=%s, url=%s",
-                    response.status_code, error_message, url
+                    "Admin service returned error: status=%s, message=%s, "
+                    "url=%s",
+                    response.status_code,
+                    error_message,
+                    url
                 )
 
                 raise AdminServiceError(
@@ -221,7 +259,8 @@ class AdminClient:
                 # Don't retry on timeout for the last attempt
                 if attempt == self.max_retries - 1:
                     raise AdminServiceTimeoutError(
-                        f"Admin service request timed out after {self.timeout}s",
+                        f"Admin service request timed out after "
+                        f"{self.timeout}s",
                         details={"url": url, "timeout": self.timeout}
                     ) from e
 
@@ -235,13 +274,15 @@ class AdminClient:
                 # Don't retry on connection error for the last attempt
                 if attempt == self.max_retries - 1:
                     raise AdminServiceConnectionError(
-                        f"Failed to connect to admin service at {self.admin_url}",
+                        f"Failed to connect to admin service at "
+                        f"{self.admin_url}",
                         details={"url": url, "error": str(e)}
                     ) from e
 
             except AdminServiceError:
                 # Don't retry on explicit admin service errors (4xx, 5xx)
-                # Re-raise immediately to skip retry logic for non-transient errors
+                # Re-raise immediately to skip retry logic for
+                # non-transient errors
                 raise
 
             except RequestException as e:
@@ -281,7 +322,8 @@ class AdminClient:
 
         Routes request to POST /v1/figma/installations on admin service.
 
-        :param data: Installation data containing name, description, pat, team_id (optional)
+        :param data: Installation data containing name, description, pat,
+            team_id (optional)
         :param user_context: User context for authorization and tracking
         :return: Created installation record (without PAT)
         :raises AdminServiceError: If creation fails
@@ -296,7 +338,10 @@ class AdminClient:
             }
             result = client.create_figma_installation(data, user_context)
         """
-        logger.info("Routing create_figma_installation request for user %s", user_context.get("user_id"))
+        logger.info(
+            "Routing create_figma_installation request for user %s",
+            user_context.get("user_id")
+        )
         result = self._make_request(
             method='POST',
             path='/v1/figma/installations',
@@ -318,7 +363,8 @@ class AdminClient:
 
         :param installation_id: ID of the installation to retrieve
         :param user_context: User context for authorization
-        :return: Installation record with PAT status (never includes actual PAT)
+        :return: Installation record with PAT status (never includes
+            actual PAT)
         :raises AdminServiceError: If retrieval fails or installation not found
 
         Example::
@@ -326,7 +372,10 @@ class AdminClient:
             installation = client.get_figma_installation(123, user_context)
             print(f"Status: {installation['pat_status']}")
         """
-        logger.info("Routing get_figma_installation request for installation %s", installation_id)
+        logger.info(
+            "Routing get_figma_installation request for installation %s",
+            installation_id
+        )
         result = self._make_request(
             method='GET',
             path=f'/v1/figma/installations/{installation_id}',
@@ -343,7 +392,8 @@ class AdminClient:
         """
         Update the Personal Access Token for a Figma installation.
 
-        Routes request to PUT /v1/figma/installations/{id}/pat on admin service.
+        Routes request to PUT /v1/figma/installations/{id}/pat on admin
+        service.
 
         :param installation_id: ID of the installation to update
         :param data: New PAT data containing 'pat' field
@@ -356,7 +406,10 @@ class AdminClient:
             data = {"pat": "figd_NewToken123..."}
             result = client.update_figma_pat(123, data, user_context)
         """
-        logger.info("Routing update_figma_pat request for installation %s", installation_id)
+        logger.info(
+            "Routing update_figma_pat request for installation %s",
+            installation_id
+        )
         result = self._make_request(
             method='PUT',
             path=f'/v1/figma/installations/{installation_id}/pat',
@@ -385,7 +438,11 @@ class AdminClient:
 
             client.delete_figma_installation(123, user_context)
         """
-        logger.info("Routing delete_figma_installation request for installation %s", installation_id)
+        logger.info(
+            "Routing delete_figma_installation request for "
+            "installation %s",
+            installation_id
+        )
         result = self._make_request(
             method='DELETE',
             path=f'/v1/figma/installations/{installation_id}',
@@ -402,14 +459,16 @@ class AdminClient:
         """
         Share a Figma installation with other users.
 
-        Routes request to POST /v1/figma/installations/{id}/share on admin service.
+        Routes request to POST /v1/figma/installations/{id}/share on
+        admin service.
         Requires ADMIN or SUPER_ADMIN role.
 
         :param installation_id: ID of the installation to share
         :param data: Share data containing target_user_id and access_level
         :param user_context: User context for role verification
         :return: Created access record
-        :raises AdminServiceError: If sharing fails or user lacks ADMIN/SUPER_ADMIN role
+        :raises AdminServiceError: If sharing fails or user lacks
+            ADMIN/SUPER_ADMIN role
 
         Example::
 
@@ -420,8 +479,10 @@ class AdminClient:
             result = client.share_figma_installation(123, data, user_context)
         """
         logger.info(
-            "Routing share_figma_installation request for installation %s by user %s",
-            installation_id, user_context.get("user_id")
+            "Routing share_figma_installation request for installation "
+            "%s by user %s",
+            installation_id,
+            user_context.get("user_id")
         )
         result = self._make_request(
             method='POST',
@@ -440,14 +501,16 @@ class AdminClient:
         """
         Revoke user access to a Figma installation.
 
-        Routes request to DELETE /v1/figma/installations/{id}/share on admin service.
+        Routes request to DELETE /v1/figma/installations/{id}/share on
+        admin service.
         Requires ADMIN or SUPER_ADMIN role.
 
         :param installation_id: ID of the installation
         :param data: Revocation data containing target_user_id
         :param user_context: User context for role verification
         :return: Empty dict on success
-        :raises AdminServiceError: If revocation fails or user lacks ADMIN/SUPER_ADMIN role
+        :raises AdminServiceError: If revocation fails or user lacks
+            ADMIN/SUPER_ADMIN role
 
         Example::
 
@@ -455,8 +518,10 @@ class AdminClient:
             client.revoke_figma_access(123, data, user_context)
         """
         logger.info(
-            "Routing revoke_figma_access request for installation %s by user %s",
-            installation_id, user_context.get("user_id")
+            "Routing revoke_figma_access request for installation %s "
+            "by user %s",
+            installation_id,
+            user_context.get("user_id")
         )
         result = self._make_request(
             method='DELETE',
@@ -474,25 +539,33 @@ class AdminClient:
         """
         Validate Figma frame URL and retrieve metadata.
 
-        Routes request to POST /v1/figma/frames/validate on admin service.
-        Checks if the PAT associated with the installation can access the frame.
+        Routes request to POST /v1/figma/frames/validate on admin
+        service. Checks if the PAT associated with the installation can
+        access the frame.
 
-        :param data: Validation data containing frame_url and installation_id
+        :param data: Validation data containing frame_url and
+            installation_id
         :param user_context: User context for authorization
-        :return: Validation result with valid (bool), title (str), and message (str)
+        :return: Validation result with valid (bool), title (str), and
+            message (str)
         :raises AdminServiceError: If validation request fails
 
         Example::
 
             data = {
-                "frame_url": "https://www.figma.com/file/ABC123/Design?node-id=1:2",
+                "frame_url": (
+                    "https://www.figma.com/file/ABC123/Design?node-id=1:2"
+                ),
                 "installation_id": 123
             }
             result = client.validate_figma_frame(data, user_context)
             if result['valid']:
                 print(f"Frame title: {result['title']}")
         """
-        logger.info("Routing validate_figma_frame request for user %s", user_context.get("user_id"))
+        logger.info(
+            "Routing validate_figma_frame request for user %s",
+            user_context.get("user_id")
+        )
         result = self._make_request(
             method='POST',
             path='/v1/figma/frames/validate',
@@ -510,9 +583,11 @@ class AdminClient:
         Attach Figma frames to a project.
 
         Routes request to POST /v1/figma/attachments on admin service.
-        Operation is additive and idempotent - same frame URL overwrites previous attachment.
+        Operation is additive and idempotent - same frame URL overwrites
+        previous attachment.
 
-        :param data: Attachment data containing project_id, installation_id, frames list, tech_spec_id (optional)
+        :param data: Attachment data containing project_id,
+            installation_id, frames list, tech_spec_id (optional)
         :param user_context: User context for authorization and tracking
         :return: List of created/updated attachment records
         :raises AdminServiceError: If attachment creation fails
@@ -524,15 +599,29 @@ class AdminClient:
                 "installation_id": 123,
                 "tech_spec_id": 200,  # optional
                 "frames": [
-                    {"url": "https://www.figma.com/file/ABC/Design?node-id=1:2", "description": "Homepage"},
-                    {"url": "https://www.figma.com/file/ABC/Design?node-id=3:4", "description": "Login"}
+                    {
+                        "url": (
+                            "https://www.figma.com/file/ABC/Design?"
+                            "node-id=1:2"
+                        ),
+                        "description": "Homepage"
+                    },
+                    {
+                        "url": (
+                            "https://www.figma.com/file/ABC/Design?"
+                            "node-id=3:4"
+                        ),
+                        "description": "Login"
+                    }
                 ]
             }
             attachments = client.create_figma_attachments(data, user_context)
         """
         logger.info(
-            "Routing create_figma_attachments request for project %s by user %s",
-            data.get("project_id"), user_context.get("user_id")
+            "Routing create_figma_attachments request for project %s "
+            "by user %s",
+            data.get("project_id"),
+            user_context.get("user_id")
         )
         result = self._make_request(
             method='POST',
@@ -552,7 +641,8 @@ class AdminClient:
 
         Routes request to GET /v1/figma/attachments on admin service.
 
-        :param query_params: Query parameters containing project_id (required) and tech_spec_id (optional)
+        :param query_params: Query parameters containing project_id
+            (required) and tech_spec_id (optional)
         :param user_context: User context for authorization
         :return: List of attachment records
         :raises AdminServiceError: If listing fails
@@ -599,7 +689,10 @@ class AdminClient:
             attachment = client.get_figma_attachment(789, user_context)
             print(f"Frame URL: {attachment['frame_url']}")
         """
-        logger.info("Routing get_figma_attachment request for attachment %s", attachment_id)
+        logger.info(
+            "Routing get_figma_attachment request for attachment %s",
+            attachment_id
+        )
         result = self._make_request(
             method='GET',
             path=f'/v1/figma/attachments/{attachment_id}',
@@ -626,7 +719,10 @@ class AdminClient:
 
             client.delete_figma_attachment(789, user_context)
         """
-        logger.info("Routing delete_figma_attachment request for attachment %s", attachment_id)
+        logger.info(
+            "Routing delete_figma_attachment request for attachment %s",
+            attachment_id
+        )
         result = self._make_request(
             method='DELETE',
             path=f'/v1/figma/attachments/{attachment_id}',
