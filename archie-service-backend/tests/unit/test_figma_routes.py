@@ -82,7 +82,7 @@ class TestFeatureFlagEnforcement:
         assert response.status_code in [404, 503], \
             "Feature disabled should return 404 (not found) or 503 (unavailable)"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data, "Error response should contain 'error' key"
         assert 'message' in response_data['error'] or 'detail' in response_data['error'], \
             "Error should contain descriptive message"
@@ -365,7 +365,7 @@ class TestAuthenticationRequirement:
         assert response.status_code == 401, \
             "Unauthenticated request should return 401 Unauthorized"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data or 'detail' in response_data, \
             "401 response should contain error information"
         
@@ -517,7 +517,7 @@ class TestAuthenticationRequirement:
         response = test_client.post(
             '/v1/figma/installations',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -580,7 +580,7 @@ class TestAuthorizationChecks:
         assert response.status_code == 403, \
             "User without project access should receive 403 Forbidden"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data or 'detail' in response_data, \
             "403 response should contain error information"
         
@@ -624,13 +624,21 @@ class TestAuthorizationChecks:
         Test GET /v1/figma/attachments/{id} returns 403 for inaccessible project.
         
         When retrieving a specific attachment, the backend should verify the user
-        has access to the project that attachment belongs to.
+        has access to the project that attachment belongs to. Note: Backend fetches
+        the attachment first to determine project_id, then checks access.
         
         :param test_client: Flask/FastAPI test client fixture
         :param fake_config_enabled: Config repository with feature enabled
         :param fake_admin_client: Fake admin client for request tracking
         :param authenticated_user_no_project_access: User without project access
         """
+        # Arrange - Configure fake client to return attachment with project_id
+        fake_admin_client.set_success({
+            'id': 1,
+            'project_id': 100,
+            'frame_url': 'https://www.figma.com/file/ABC/Design?node-id=1:2'
+        })
+        
         # Act
         response = test_client.get(
             '/v1/figma/attachments/1',
@@ -638,8 +646,16 @@ class TestAuthorizationChecks:
         )
         
         # Assert
-        assert response.status_code == 403
-        assert fake_admin_client.request_count == 0
+        assert response.status_code == 403, \
+            "User without project access should receive 403 Forbidden"
+        
+        response_data = response.get_json()
+        assert 'error' in response_data or 'detail' in response_data, \
+            "403 response should contain error information"
+        
+        # Verify attachment was fetched to determine project_id (1 call)
+        assert fake_admin_client.request_count == 1, \
+            "Backend should fetch attachment once to determine project_id before denying access"
     
     def test_delete_attachment_without_project_access(
         self,
@@ -651,11 +667,21 @@ class TestAuthorizationChecks:
         """
         Test DELETE /v1/figma/attachments/{id} returns 403 for inaccessible project.
         
+        Backend fetches attachment first to determine project_id, then checks access
+        before proceeding with deletion.
+        
         :param test_client: Flask/FastAPI test client fixture
         :param fake_config_enabled: Config repository with feature enabled
         :param fake_admin_client: Fake admin client for request tracking
         :param authenticated_user_no_project_access: User without project access
         """
+        # Arrange - Configure fake client to return attachment with project_id
+        fake_admin_client.set_success({
+            'id': 1,
+            'project_id': 100,
+            'frame_url': 'https://www.figma.com/file/ABC/Design?node-id=1:2'
+        })
+        
         # Act
         response = test_client.delete(
             '/v1/figma/attachments/1',
@@ -663,8 +689,16 @@ class TestAuthorizationChecks:
         )
         
         # Assert
-        assert response.status_code == 403
-        assert fake_admin_client.request_count == 0
+        assert response.status_code == 403, \
+            "User without project access should receive 403 Forbidden"
+        
+        response_data = response.get_json()
+        assert 'error' in response_data or 'detail' in response_data, \
+            "403 response should contain error information"
+        
+        # Verify attachment was fetched to determine project_id (1 call for GET, no DELETE call)
+        assert fake_admin_client.request_count == 1, \
+            "Backend should fetch attachment once to determine project_id before denying deletion"
     
     def test_authorization_allows_with_project_access(
         self,
@@ -735,7 +769,7 @@ class TestAuthorizationChecks:
         response = test_client.post(
             '/v1/figma/installations',
             json={'name': 'Test', 'pat': 'figd_token_123'},
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -787,7 +821,7 @@ class TestAdminServiceRouting:
         response = test_client.post(
             '/v1/figma/installations',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -827,7 +861,7 @@ class TestAdminServiceRouting:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -868,7 +902,7 @@ class TestAdminServiceRouting:
         response = test_client.put(
             '/v1/figma/installations/1/pat',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -902,7 +936,7 @@ class TestAdminServiceRouting:
         # Act
         response = test_client.delete(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -942,7 +976,7 @@ class TestAdminServiceRouting:
         })
         
         payload = {
-            'user_id': 2,
+            'target_user_id': 2,
             'access_level': 'viewer'
         }
         
@@ -950,7 +984,7 @@ class TestAdminServiceRouting:
         response = test_client.post(
             '/v1/figma/installations/1/share',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -961,7 +995,7 @@ class TestAdminServiceRouting:
         method, path, forwarded_data = fake_admin_client.last_request
         assert method == 'POST'
         assert '/share' in path
-        assert forwarded_data['user_id'] == 2
+        assert forwarded_data['target_user_id'] == 2
     
     def test_revoke_access_routes_to_admin(
         self,
@@ -981,10 +1015,13 @@ class TestAdminServiceRouting:
         # Arrange
         fake_admin_client.set_response(204, {})
         
+        payload = {'target_user_id': 2}
+        
         # Act
         response = test_client.delete(
-            '/v1/figma/installations/1/share?user_id=2',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            '/v1/figma/installations/1/share',
+            json=payload,
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -992,9 +1029,10 @@ class TestAdminServiceRouting:
         assert fake_admin_client.request_count == 1
         
         # Verify request details
-        method, path, _ = fake_admin_client.last_request
+        method, path, forwarded_data = fake_admin_client.last_request
         assert method == 'DELETE'
         assert '/share' in path
+        assert forwarded_data['target_user_id'] == 2
     
     def test_validate_frame_routes_to_admin(
         self,
@@ -1027,7 +1065,7 @@ class TestAdminServiceRouting:
         response = test_client.post(
             '/v1/figma/frames/validate',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1162,7 +1200,7 @@ class TestAdminServiceRouting:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1199,7 +1237,7 @@ class TestAdminServiceRouting:
         response = test_client.post(
             '/v1/figma/installations',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1257,13 +1295,13 @@ class TestResponseHandling:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 200, "Success from admin should return 200"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert response_data['id'] == expected_response['id']
         assert response_data['name'] == expected_response['name']
         assert response_data['pat_status'] == 'Active'
@@ -1292,13 +1330,13 @@ class TestResponseHandling:
         # Act
         response = test_client.get(
             '/v1/figma/installations/999',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 404, "404 from admin should be forwarded"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data, "Error response should contain error information"
         assert 'not found' in response_data['error']['message'].lower() or \
                'not found' in str(response_data).lower()
@@ -1328,13 +1366,13 @@ class TestResponseHandling:
         response = test_client.post(
             '/v1/figma/installations',
             json={'name': 'Test', 'pat': 'figd_token_123'},
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 500, "500 from admin should be forwarded"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data, "Should contain error information"
     
     def test_timeout_handling(
@@ -1361,14 +1399,14 @@ class TestResponseHandling:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code in [500, 504], \
             "Timeout should return 500 or 504 Gateway Timeout"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data or 'detail' in response_data, \
             "Should contain error information about timeout"
     
@@ -1406,12 +1444,12 @@ class TestResponseHandling:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 200
-        response_data = response.json()
+        response_data = response.get_json()
         
         # Verify data matches exactly (backend didn't modify anything)
         assert response_data == original_response, \
@@ -1443,7 +1481,7 @@ class TestResponseHandling:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1486,14 +1524,14 @@ class TestRequestValidation:
         response = test_client.post(
             '/v1/figma/installations',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 400, \
             "Missing required fields should return 400 Bad Request"
         
-        response_data = response.json()
+        response_data = response.get_json()
         assert 'error' in response_data or 'detail' in response_data, \
             "Should contain validation error information"
         
@@ -1527,7 +1565,7 @@ class TestRequestValidation:
         response = test_client.post(
             '/v1/figma/attachments',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1562,7 +1600,7 @@ class TestRequestValidation:
         response = test_client.post(
             '/v1/figma/frames/validate',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1590,7 +1628,7 @@ class TestRequestValidation:
         # Act - Use string instead of integer in path
         response = test_client.get(
             '/v1/figma/installations/not_a_number',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1629,7 +1667,7 @@ class TestRequestValidation:
         response = test_client.post(
             '/v1/figma/installations',
             json=payload,
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1678,12 +1716,12 @@ class TestNoBusinessLogicInRoutes:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code == 200
-        response_data = response.json()
+        response_data = response.get_json()
         
         # The pat_status comes from admin service, not computed by backend
         assert response_data['pat_status'] == 'Active'
@@ -1716,7 +1754,7 @@ class TestNoBusinessLogicInRoutes:
         response = test_client.post(
             '/v1/figma/installations',
             json={'name': 'Test', 'pat': 'figd_token_123'},
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1757,7 +1795,7 @@ class TestNoBusinessLogicInRoutes:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1801,7 +1839,7 @@ class TestNoBusinessLogicInRoutes:
                 'frame_url': 'https://www.figma.com/file/ABC123/File?node-id=1:2',
                 'installation_id': 1
             },
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
@@ -1845,7 +1883,7 @@ class TestNoBusinessLogicInRoutes:
         response = test_client.post(
             '/v1/figma/installations',
             json={'name': 'Test', 'pat': 'figd_token_123'},
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert - Request succeeded
@@ -1855,7 +1893,7 @@ class TestNoBusinessLogicInRoutes:
         assert fake_admin_client.request_count == 1
         
         # Verify response came from admin (not constructed by backend)
-        response_data = response.json()
+        response_data = response.get_json()
         assert response_data == fake_admin_client.last_request[2] or \
                response_data['id'] == 1
 
@@ -1891,7 +1929,7 @@ class TestErrorMessages:
         # Assert
         assert response.status_code in [404, 503]
         
-        response_data = response.json()
+        response_data = response.get_json()
         error_info = response_data.get('error') or response_data
         message = str(error_info.get('message', '')).lower() or str(error_info).lower()
         
@@ -1919,7 +1957,7 @@ class TestErrorMessages:
         # Assert
         assert response.status_code == 401
         
-        response_data = response.json()
+        response_data = response.get_json()
         error_info = response_data.get('error') or response_data
         message = str(error_info.get('message', '')).lower() or str(error_info).lower()
         
@@ -1957,7 +1995,7 @@ class TestErrorMessages:
         # Assert
         assert response.status_code == 403
         
-        response_data = response.json()
+        response_data = response.get_json()
         error_info = response_data.get('error') or response_data
         message = str(error_info.get('message', '')).lower() or str(error_info).lower()
         
@@ -1990,13 +2028,13 @@ class TestErrorMessages:
         # Act
         response = test_client.get(
             '/v1/figma/installations/1',
-            headers={'Authorization': f"Bearer {authenticated_user['token']}"}
+            headers={'Authorization': f"Bearer {authenticated_user['auth_token']}"}
         )
         
         # Assert
         assert response.status_code in [500, 502, 503, 504]
         
-        response_data = response.json()
+        response_data = response.get_json()
         error_info = response_data.get('error') or response_data
         message = str(error_info.get('message', '')).lower() or str(error_info).lower()
         
