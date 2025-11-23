@@ -45,7 +45,6 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
 from .interfaces.i_figma_repository import IFigmaRepository
 from ..models.figma_installation import FigmaInstallation
@@ -86,7 +85,7 @@ class FigmaRepository(IFigmaRepository):
         context). The repository does not commit or rollback transactions - it
         delegates that responsibility to the service layer to enable coordination
         with external systems like Secret Manager.
-        
+
         If no session is provided, a new session is created using get_db_session().
         This enables simple instantiation in production while allowing explicit
         session injection for testing and transaction management.
@@ -97,10 +96,10 @@ class FigmaRepository(IFigmaRepository):
         Usage Example:
             ```python
             from sqlalchemy.orm import Session
-            
+
             # Production: Use default session
             figma_repo = FigmaRepository()
-            
+
             # Testing or explicit session management
             session = get_db_session()
             figma_repo = FigmaRepository(session)
