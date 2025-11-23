@@ -15,6 +15,14 @@ depending on the actual admin service being available.
 
 from typing import Any, Dict, List, Optional, Tuple
 
+# Import actual exception classes from src.services.admin_client
+# Use the full module path to match how routes module imports it
+from src.services.admin_client import (
+    AdminServiceError,
+    AdminServiceConnectionError,
+    AdminServiceTimeoutError
+)
+
 
 class FakeResponse:
     """
@@ -371,16 +379,18 @@ class FakeAdminClient:
     def delete(
         self,
         path: str,
+        json: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None
     ) -> FakeResponse:
         """
         Simulate a DELETE request to the admin service.
 
         :param path: Request path (e.g., '/v1/figma/installations/1')
+        :param json: Request body as JSON dictionary
         :param headers: Optional HTTP headers
         :return: FakeResponse object with configured status and data
         """
-        return self._execute_request('DELETE', path, headers=headers)
+        return self._execute_request('DELETE', path, data=json, headers=headers)
 
     def set_response(self, status_code: int, data: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -501,3 +511,267 @@ class FakeAdminClient:
         configured responses.
         """
         self.requests_made = []
+
+    # Figma-specific methods to match AdminClient interface
+
+    def create_figma_installation(
+        self,
+        data: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Create a Figma installation (mimics AdminClient method).
+
+        :param data: Installation data
+        :param user_context: Authenticated user context
+        :return: Created installation data from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.post('/v1/figma/installations', json=data)
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def get_figma_installation(
+        self,
+        installation_id: int,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Get a Figma installation (mimics AdminClient method).
+
+        :param installation_id: Installation ID
+        :param user_context: Authenticated user context
+        :return: Installation data from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.get(f'/v1/figma/installations/{installation_id}')
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def update_figma_pat(
+        self,
+        installation_id: int,
+        pat: str,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update Figma installation PAT (mimics AdminClient method).
+
+        :param installation_id: Installation ID
+        :param pat: New Personal Access Token
+        :param user_context: Authenticated user context
+        :return: Updated installation data from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.put(
+            f'/v1/figma/installations/{installation_id}/pat',
+            json={'pat': pat}
+        )
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def delete_figma_installation(
+        self,
+        installation_id: int,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Delete a Figma installation (mimics AdminClient method).
+
+        :param installation_id: Installation ID
+        :param user_context: Authenticated user context
+        :return: Deletion confirmation from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.delete(f'/v1/figma/installations/{installation_id}')
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def share_figma_installation(
+        self,
+        installation_id: int,
+        data: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Share Figma installation with users (mimics AdminClient method).
+
+        :param installation_id: Installation ID
+        :param data: Share request data
+        :param user_context: Authenticated user context
+        :return: Share result from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.post(
+            f'/v1/figma/installations/{installation_id}/share',
+            json=data
+        )
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def revoke_figma_access(
+        self,
+        installation_id: int,
+        data: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Revoke Figma installation access (mimics AdminClient method).
+
+        :param installation_id: Installation ID
+        :param data: Revoke request data
+        :param user_context: Authenticated user context
+        :return: Revoke result from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.delete(
+            f'/v1/figma/installations/{installation_id}/share',
+            json=data
+        )
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def validate_figma_frame(
+        self,
+        data: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Validate Figma frame URL (mimics AdminClient method).
+
+        :param data: Validation request data
+        :param user_context: Authenticated user context
+        :return: Validation result from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.post('/v1/figma/frames/validate', json=data)
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def create_figma_attachments(
+        self,
+        data: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Create Figma frame attachments (mimics AdminClient method).
+
+        :param data: Attachment data
+        :param user_context: Authenticated user context
+        :return: Created attachments from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.post('/v1/figma/attachments', json=data)
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def list_figma_attachments(
+        self,
+        project_id: int,
+        tech_spec_id: Optional[int],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        List Figma attachments for a project (mimics AdminClient method).
+
+        :param project_id: Project ID
+        :param tech_spec_id: Optional tech spec ID
+        :param user_context: Authenticated user context
+        :return: List of attachments from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        path = f'/v1/figma/attachments?project_id={project_id}'
+        if tech_spec_id is not None:
+            path += f'&tech_spec_id={tech_spec_id}'
+        response = self.get(path)
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def get_figma_attachment(
+        self,
+        attachment_id: int,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Get a specific Figma attachment (mimics AdminClient method).
+
+        :param attachment_id: Attachment ID
+        :param user_context: Authenticated user context
+        :return: Attachment data from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.get(f'/v1/figma/attachments/{attachment_id}')
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
+
+    def delete_figma_attachment(
+        self,
+        attachment_id: int,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Delete a Figma attachment (mimics AdminClient method).
+
+        :param attachment_id: Attachment ID
+        :param user_context: Authenticated user context
+        :return: Deletion confirmation from configured response
+        :raises AdminServiceError: If admin service returns error response
+        """
+        response = self.delete(f'/v1/figma/attachments/{attachment_id}')
+        if not response.ok:
+            raise AdminServiceError(
+                f"Admin service error: {response.status_code}",
+                status_code=response.status_code,
+                details=response.json()
+            )
+        return response.json()
