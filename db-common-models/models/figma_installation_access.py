@@ -149,19 +149,57 @@ class FigmaInstallationAccess(Base):
     # Relationships to User model using string references
     # These use viewonly=True since back_populates cannot be configured
     # from this package (User model is external)
-    user = relationship(
-        'User',
-        foreign_keys=[user_id],
-        viewonly=True,
-        doc='User who has been granted access'
-    )
-
-    granter = relationship(
-        'User',
-        foreign_keys=[granted_by],
-        viewonly=True,
-        doc='User who granted this access'
-    )
+    #
+    # NOTE: These relationships will only work when User model is available
+    # in the same SQLAlchemy registry. When using db-common-models standalone,
+    # these relationships should be configured in the consuming application.
+    # Uncomment these when integrating into full application with User model:
+    #
+    # user = relationship(
+    #     'User',
+    #     foreign_keys=[user_id],
+    #     viewonly=True,
+    #     doc='User who has been granted access'
+    # )
+    #
+    # granter = relationship(
+    #     'User',
+    #     foreign_keys=[granted_by],
+    #     viewonly=True,
+    #     doc='User who granted this access'
+    # )
+    
+    # For standalone model compatibility, define placeholder properties
+    # These will be overridden by actual relationships when integrated
+    @property
+    def user(self):
+        """
+        Placeholder for User relationship.
+        
+        This property provides a hook for the User relationship that should
+        be configured when integrating into the full application. In standalone
+        usage, this returns None.
+        
+        Returns:
+            None in standalone mode, User object when relationship is configured.
+        """
+        # This will be overridden by SQLAlchemy relationship when User model is available
+        return getattr(self, '_user', None)
+    
+    @property
+    def granter(self):
+        """
+        Placeholder for granter (User) relationship.
+        
+        This property provides a hook for the granter relationship that should
+        be configured when integrating into the full application. In standalone
+        usage, this returns None.
+        
+        Returns:
+            None in standalone mode, User object when relationship is configured.
+        """
+        # This will be overridden by SQLAlchemy relationship when User model is available
+        return getattr(self, '_granter', None)
 
     @property
     def figma_installation(self):
