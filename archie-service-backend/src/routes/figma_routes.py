@@ -23,16 +23,26 @@ Exports:
 import logging
 import os
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Tuple
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, jsonify, request
 
-from ..services.admin_client import (
-    AdminClient,
-    AdminServiceConnectionError,
-    AdminServiceError,
-    AdminServiceTimeoutError
-)
+try:
+    # Try relative import first (when used as a package)
+    from ..services.admin_client import (
+        AdminClient,
+        AdminServiceConnectionError,
+        AdminServiceError,
+        AdminServiceTimeoutError
+    )
+except ImportError:
+    # Fall back to absolute import (when used standalone or in tests)
+    from services.admin_client import (  # type: ignore[no-redef]
+        AdminClient,  # type: ignore[no-redef]
+        AdminServiceConnectionError,  # type: ignore[no-redef]
+        AdminServiceError,  # type: ignore[no-redef]
+        AdminServiceTimeoutError  # type: ignore[no-redef]
+    )
 
 
 # Initialize logger for request/response tracking
@@ -66,7 +76,7 @@ def require_feature_flag(f: Callable) -> Callable:
     :return: Decorated function with feature flag check
     """
     @wraps(f)
-    def decorated_function(*args: Any, **kwargs: Any) -> Tuple[Dict[str, Any], int]:
+    def decorated_function(*args: Any, **kwargs: Any) -> Tuple[Any, int]:
         if not is_feature_enabled():
             logger.warning(
                 "Figma integration endpoint accessed but feature is disabled: %s",
@@ -78,9 +88,9 @@ def require_feature_flag(f: Callable) -> Callable:
                     "message": "Figma integration is not enabled"
                 }
             }), 404
-        
+
         return f(*args, **kwargs)
-    
+
     return decorated_function
 
 
@@ -103,17 +113,17 @@ def get_user_context() -> Dict[str, Any]:
         # Try to get from g object if authentication middleware stores it there
         from flask import g
         user_id = getattr(g, 'user_id', None)
-    
+
     if not user_id:
         logger.error("Authentication required: No user context found in request")
         raise ValueError("User authentication required")
-    
+
     # Extract authentication token
     auth_token = None
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
         auth_token = auth_header[7:]  # Remove 'Bearer ' prefix
-    
+
     # Build user context dictionary
     context = {
         'user_id': int(user_id),
@@ -121,7 +131,7 @@ def get_user_context() -> Dict[str, Any]:
         'request_id': request.headers.get('X-Request-ID', ''),
         'ip_address': request.remote_addr
     }
-    
+
     logger.debug("Extracted user context for user_id=%s", user_id)
     return context
 
@@ -141,12 +151,12 @@ def verify_project_access(user_context: Dict[str, Any], project_id: int) -> bool
     # an authorization service to verify project access.
     # For now, we delegate this to the admin service which will perform
     # the actual authorization check.
-    
+
     # The admin service will reject unauthorized requests, so we can
     # safely return True here and let the admin service handle it.
     # This is a design decision to keep authorization logic centralized
     # in the admin service.
-    
+
     logger.debug(
         "Project access check for user_id=%s, project_id=%s (delegated to admin service)",
         user_context.get('user_id'),
@@ -169,7 +179,7 @@ def get_admin_client() -> AdminClient:
         'http://archie-service-admin:8000'
     )
     timeout = int(os.getenv('ADMIN_SERVICE_TIMEOUT', '30'))
-    
+
     return AdminClient(
         admin_url=admin_url,
         timeout=timeout,
@@ -178,7 +188,7 @@ def get_admin_client() -> AdminClient:
     )
 
 
-def handle_admin_service_error(error: Exception) -> Tuple[Dict[str, Any], int]:
+def handle_admin_service_error(error: Exception) -> Tuple[Any, int]:
     """
     Convert admin service errors to appropriate HTTP responses.
 
@@ -197,7 +207,7 @@ def handle_admin_service_error(error: Exception) -> Tuple[Dict[str, Any], int]:
                 "details": error.details
             }
         }), 504  # Gateway Timeout
-    
+
     elif isinstance(error, AdminServiceConnectionError):
         logger.error("Admin service connection failed: %s", str(error))
         return jsonify({
@@ -207,7 +217,7 @@ def handle_admin_service_error(error: Exception) -> Tuple[Dict[str, Any], int]:
                 "details": error.details
             }
         }), 503  # Service Unavailable
-    
+
     elif isinstance(error, AdminServiceError):
         # Forward the status code and message from admin service
         status_code = error.status_code or 500
@@ -223,7 +233,7 @@ def handle_admin_service_error(error: Exception) -> Tuple[Dict[str, Any], int]:
                 "details": error.details
             }
         }), status_code
-    
+
     else:
         # Unexpected error
         logger.exception("Unexpected error in Figma route handler: %s", str(error))
@@ -237,7 +247,7 @@ def handle_admin_service_error(error: Exception) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations', methods=['POST'])
 @require_feature_flag
-def create_installation() -> Tuple[Dict[str, Any], int]:
+def create_installation() -> Tuple[Any, int]:
     """
     Create a new Figma installation with Personal Access Token.
 
@@ -271,9 +281,9 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
-        # Extract request data
-        data = request.get_json()
+
+        # Extract request data (silent=True returns None for invalid/missing JSON)
+        data = request.get_json(silent=True)
         if not data:
             logger.warning("Create installation request missing JSON body")
             return jsonify({
@@ -282,7 +292,7 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
                     "message": "Request body must be JSON"
                 }
             }), 400
-        
+
         # Validate required fields
         if 'name' not in data or 'pat' not in data:
             logger.warning(
@@ -295,25 +305,25 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required fields: name, pat"
                 }
             }), 400
-        
+
         logger.info(
             "Creating Figma installation for user_id=%s, name=%s",
             user_context['user_id'],
             data.get('name')
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.create_figma_installation(data, user_context)
-        
+
         logger.info(
             "Successfully created Figma installation id=%s for user_id=%s",
             result.get('id'),
             user_context['user_id']
         )
-        
+
         return jsonify(result), 201
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -323,14 +333,14 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception("Unexpected error creating Figma installation: %s", str(e))
         return jsonify({
@@ -343,7 +353,7 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations/<int:installation_id>', methods=['GET'])
 @require_feature_flag
-def get_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def get_installation(installation_id: int) -> Tuple[Any, int]:
     """
     Retrieve Figma installation details with PAT status.
 
@@ -376,24 +386,24 @@ def get_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         logger.info(
             "Retrieving Figma installation id=%s for user_id=%s",
             installation_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.get_figma_installation(installation_id, user_context)
-        
+
         logger.info(
             "Successfully retrieved Figma installation id=%s",
             installation_id
         )
-        
+
         return jsonify(result), 200
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -403,14 +413,14 @@ def get_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error retrieving Figma installation: %s",
@@ -426,7 +436,7 @@ def get_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations/<int:installation_id>/pat', methods=['PUT'])
 @require_feature_flag
-def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def update_pat(installation_id: int) -> Tuple[Any, int]:
     """
     Update Personal Access Token for a Figma installation.
 
@@ -459,7 +469,7 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract request data
         data = request.get_json()
         if not data or 'pat' not in data:
@@ -474,13 +484,13 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required field: pat"
                 }
             }), 400
-        
+
         logger.info(
             "Updating PAT for Figma installation id=%s by user_id=%s",
             installation_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.update_figma_pat(
@@ -488,14 +498,14 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
             data,
             user_context
         )
-        
+
         logger.info(
             "Successfully updated PAT for Figma installation id=%s",
             installation_id
         )
-        
+
         return jsonify(result), 200
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -505,14 +515,14 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error updating Figma installation PAT: %s",
@@ -528,7 +538,7 @@ def update_pat(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations/<int:installation_id>', methods=['DELETE'])
 @require_feature_flag
-def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def delete_installation(installation_id: int) -> Tuple[Any, int]:
     """
     Delete a Figma installation (soft delete with Secret Manager cleanup).
 
@@ -557,25 +567,25 @@ def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         logger.info(
             "Deleting Figma installation id=%s by user_id=%s",
             installation_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         admin_client.delete_figma_installation(installation_id, user_context)
-        
+
         logger.info(
             "Successfully deleted Figma installation id=%s",
             installation_id
         )
-        
+
         # Return 204 No Content on successful deletion
         return jsonify({}), 204
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -585,14 +595,14 @@ def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error deleting Figma installation: %s",
@@ -608,7 +618,7 @@ def delete_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations/<int:installation_id>/share', methods=['POST'])
 @require_feature_flag
-def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def share_installation(installation_id: int) -> Tuple[Any, int]:
     """
     Share a Figma installation with other users.
 
@@ -646,7 +656,7 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract request data
         data = request.get_json()
         if not data or 'target_user_id' not in data:
@@ -661,14 +671,14 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required field: target_user_id"
                 }
             }), 400
-        
+
         logger.info(
             "Sharing Figma installation id=%s to user_id=%s by user_id=%s",
             installation_id,
             data.get('target_user_id'),
             user_context['user_id']
         )
-        
+
         # Forward request to admin service (admin service handles authorization)
         admin_client = get_admin_client()
         result = admin_client.share_figma_installation(
@@ -676,15 +686,15 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
             data,
             user_context
         )
-        
+
         logger.info(
             "Successfully shared Figma installation id=%s to user_id=%s",
             installation_id,
             data.get('target_user_id')
         )
-        
+
         return jsonify(result), 201
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -694,14 +704,14 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error sharing Figma installation: %s",
@@ -717,7 +727,7 @@ def share_installation(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/installations/<int:installation_id>/share', methods=['DELETE'])
 @require_feature_flag
-def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
+def revoke_access(installation_id: int) -> Tuple[Any, int]:
     """
     Revoke user access to a Figma installation.
 
@@ -748,7 +758,7 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract request data
         data = request.get_json()
         if not data or 'target_user_id' not in data:
@@ -763,7 +773,7 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required field: target_user_id"
                 }
             }), 400
-        
+
         logger.info(
             "Revoking access to Figma installation id=%s from user_id=%s "
             "by user_id=%s",
@@ -771,21 +781,21 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
             data.get('target_user_id'),
             user_context['user_id']
         )
-        
+
         # Forward request to admin service (admin service handles authorization)
         admin_client = get_admin_client()
         admin_client.revoke_figma_access(installation_id, data, user_context)
-        
+
         logger.info(
             "Successfully revoked access to Figma installation id=%s from "
             "user_id=%s",
             installation_id,
             data.get('target_user_id')
         )
-        
+
         # Return 204 No Content on successful revocation
         return jsonify({}), 204
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -795,14 +805,14 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error revoking Figma installation access: %s",
@@ -818,7 +828,7 @@ def revoke_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/frames/validate', methods=['POST'])
 @require_feature_flag
-def validate_frame() -> Tuple[Dict[str, Any], int]:
+def validate_frame() -> Tuple[Any, int]:
     """
     Validate Figma frame URL and retrieve metadata.
 
@@ -848,7 +858,7 @@ def validate_frame() -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract request data
         data = request.get_json()
         if not data or 'frame_url' not in data or 'installation_id' not in data:
@@ -862,24 +872,24 @@ def validate_frame() -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required fields: frame_url, installation_id"
                 }
             }), 400
-        
+
         logger.info(
             "Validating Figma frame URL for user_id=%s, installation_id=%s",
             user_context['user_id'],
             data.get('installation_id')
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.validate_figma_frame(data, user_context)
-        
+
         logger.info(
             "Frame validation result: valid=%s",
             result.get('valid')
         )
-        
+
         return jsonify(result), 200
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -889,14 +899,14 @@ def validate_frame() -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error validating Figma frame: %s",
@@ -912,7 +922,7 @@ def validate_frame() -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/attachments', methods=['POST'])
 @require_feature_flag
-def create_attachments() -> Tuple[Dict[str, Any], int]:
+def create_attachments() -> Tuple[Any, int]:
     """
     Attach Figma frames to a project.
 
@@ -950,7 +960,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract request data
         data = request.get_json()
         if not data:
@@ -961,7 +971,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
                     "message": "Request body must be JSON"
                 }
             }), 400
-        
+
         # Validate required fields
         required_fields = ['project_id', 'installation_id', 'frames']
         missing_fields = [f for f in required_fields if f not in data]
@@ -976,9 +986,9 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
                     "message": f"Missing required fields: {', '.join(missing_fields)}"
                 }
             }), 400
-        
+
         project_id = data.get('project_id')
-        
+
         # Verify user has access to the project
         # Note: Actual authorization is delegated to admin service which
         # has direct database access to verify project ownership/membership
@@ -994,7 +1004,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
                     "message": "You do not have access to this project"
                 }
             }), 403
-        
+
         logger.info(
             "Creating Figma attachments for project_id=%s by user_id=%s, "
             "frame_count=%s",
@@ -1002,19 +1012,19 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
             user_context['user_id'],
             len(data.get('frames', []))
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.create_figma_attachments(data, user_context)
-        
+
         logger.info(
             "Successfully created %s Figma attachments for project_id=%s",
             len(result) if isinstance(result, list) else 0,
             project_id
         )
-        
+
         return jsonify(result), 201
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -1024,14 +1034,14 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error creating Figma attachments: %s",
@@ -1047,7 +1057,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/attachments', methods=['GET'])
 @require_feature_flag
-def list_attachments() -> Tuple[Dict[str, Any], int]:
+def list_attachments() -> Tuple[Any, int]:
     """
     List Figma attachments filtered by project and optionally tech spec.
 
@@ -1084,11 +1094,11 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         # Extract query parameters
         project_id = request.args.get('project_id', type=int)
         tech_spec_id = request.args.get('tech_spec_id', type=int)
-        
+
         # Validate required parameters
         if not project_id:
             logger.warning("List attachments request missing project_id parameter")
@@ -1098,7 +1108,7 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
                     "message": "Missing required query parameter: project_id"
                 }
             }), 400
-        
+
         # Verify user has access to the project
         if not verify_project_access(user_context, project_id):
             logger.warning(
@@ -1112,30 +1122,30 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
                     "message": "You do not have access to this project"
                 }
             }), 403
-        
+
         # Build query parameters for admin service
         query_params = {'project_id': project_id}
         if tech_spec_id:
             query_params['tech_spec_id'] = tech_spec_id
-        
+
         logger.info(
             "Listing Figma attachments for project_id=%s by user_id=%s",
             project_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         admin_client = get_admin_client()
         result = admin_client.list_figma_attachments(query_params, user_context)
-        
+
         logger.info(
             "Successfully retrieved %s Figma attachments for project_id=%s",
             len(result) if isinstance(result, list) else 0,
             project_id
         )
-        
+
         return jsonify(result), 200
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -1145,14 +1155,14 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error listing Figma attachments: %s",
@@ -1168,7 +1178,7 @@ def list_attachments() -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/attachments/<int:attachment_id>', methods=['GET'])
 @require_feature_flag
-def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
+def get_attachment(attachment_id: int) -> Tuple[Any, int]:
     """
     Retrieve a single Figma attachment by ID.
 
@@ -1204,25 +1214,25 @@ def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         logger.info(
             "Retrieving Figma attachment id=%s for user_id=%s",
             attachment_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         # Admin service will verify user has access to the associated project
         admin_client = get_admin_client()
         result = admin_client.get_figma_attachment(attachment_id, user_context)
-        
+
         logger.info(
             "Successfully retrieved Figma attachment id=%s",
             attachment_id
         )
-        
+
         return jsonify(result), 200
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -1232,14 +1242,14 @@ def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error retrieving Figma attachment: %s",
@@ -1255,7 +1265,7 @@ def get_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
 
 @figma_bp.route('/attachments/<int:attachment_id>', methods=['DELETE'])
 @require_feature_flag
-def delete_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
+def delete_attachment(attachment_id: int) -> Tuple[Any, int]:
     """
     Delete a Figma attachment (soft delete).
 
@@ -1282,26 +1292,26 @@ def delete_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
     try:
         # Verify authentication and extract user context
         user_context = get_user_context()
-        
+
         logger.info(
             "Deleting Figma attachment id=%s by user_id=%s",
             attachment_id,
             user_context['user_id']
         )
-        
+
         # Forward request to admin service
         # Admin service will verify user has permission to delete
         admin_client = get_admin_client()
         admin_client.delete_figma_attachment(attachment_id, user_context)
-        
+
         logger.info(
             "Successfully deleted Figma attachment id=%s",
             attachment_id
         )
-        
+
         # Return 204 No Content on successful deletion
         return jsonify({}), 204
-    
+
     except ValueError as e:
         # Authentication error
         logger.warning("Authentication failed: %s", str(e))
@@ -1311,14 +1321,14 @@ def delete_attachment(attachment_id: int) -> Tuple[Dict[str, Any], int]:
                 "message": str(e)
             }
         }), 401
-    
+
     except (
         AdminServiceError,
         AdminServiceConnectionError,
         AdminServiceTimeoutError
     ) as e:
         return handle_admin_service_error(e)
-    
+
     except Exception as e:
         logger.exception(
             "Unexpected error deleting Figma attachment: %s",
