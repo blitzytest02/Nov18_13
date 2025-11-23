@@ -105,7 +105,7 @@ class SecretManagerError(Exception):
         operation: The operation that failed (create, update, delete, get)
     """
     
-    def __init__(self, message: str, original_exception: Exception = None, operation: str = None):
+    def __init__(self, message: str, original_exception: Optional[Exception] = None, operation: Optional[str] = None):
         """
         Initialize SecretManagerError with context information.
         
