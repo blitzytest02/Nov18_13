@@ -15,7 +15,7 @@ Key Behavior:
     - Multiple frames can be attached in a single operation
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -43,10 +43,14 @@ class FigmaAttachment(Base):
     storing actual file content.
     
     Key Relationships:
-        - Belongs to a Project (required)
-        - Optionally belongs to a TechSpec
-        - References a FigmaInstallation (for PAT validation)
-        - Created by a User
+        - Belongs to a Project via project_id foreign key
+        - Optionally belongs to a TechSpec via tech_spec_id foreign key
+        - References a FigmaInstallation (defined as ORM relationship)
+        - Created by a User via created_by foreign key
+        
+        Note: Only the FigmaInstallation relationship is defined at the ORM level.
+        Relationships to Project, TechSpec, and User should be defined in services
+        that use this model where all models share the same SQLAlchemy registry.
     
     Attachment Process:
         1. Frame URL validated against Figma API using installation's PAT
@@ -75,10 +79,7 @@ class FigmaAttachment(Base):
         created_at: Timestamp when frame was attached
         updated_at: Timestamp when attachment was last modified
         deleted_at: Timestamp when attachment was removed (NULL if active)
-        project: Relationship to Project model
-        tech_spec: Relationship to TechSpec model (optional)
-        installation: Relationship to FigmaInstallation model
-        creator: Relationship to User model
+        figma_installation: ORM relationship to FigmaInstallation model
     """
     
     __tablename__ = 'figma_attachment'
@@ -147,7 +148,7 @@ class FigmaAttachment(Base):
     created_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when frame was attached'
     )
@@ -155,8 +156,8 @@ class FigmaAttachment(Base):
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when attachment was last updated'
     )
@@ -169,34 +170,13 @@ class FigmaAttachment(Base):
     )
     
     # Relationships
-    # NOTE: Using string references for external models to avoid import dependencies
-    # These relationships use viewonly=True since back_populates cannot be configured
-    # in this package (Project, TechSpec, User models are external)
-    project = relationship(
-        'Project',
-        foreign_keys=[project_id],
-        viewonly=True,
-        lazy='select',
-        doc='Project this frame is attached to'
-    )
+    # NOTE: Relationships to external models (Project, TechSpec, User) are NOT defined here
+    # because those models exist in separate packages (archie-service-admin, archie-service-backend).
+    # Services that use this model should define those relationships in their own codebase
+    # where all models are available in the same SQLAlchemy registry.
+    # 
+    # Only the relationship to FigmaInstallation is defined here since it's in the same package.
     
-    tech_spec = relationship(
-        'TechSpec',
-        foreign_keys=[tech_spec_id],
-        viewonly=True,
-        lazy='select',
-        doc='Optional technical specification'
-    )
-    
-    creator = relationship(
-        'User',
-        foreign_keys=[created_by],
-        viewonly=True,
-        lazy='select',
-        doc='User who created this attachment'
-    )
-    
-    # Relationship to FigmaInstallation model in this package
     figma_installation = relationship(
         'FigmaInstallation',
         foreign_keys=[figma_installation_id],
@@ -286,8 +266,8 @@ class FigmaAttachment(Base):
         Note:
             The caller is responsible for committing the transaction.
         """
-        self.deleted_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
     
     def update_metadata(
         self,
@@ -305,7 +285,7 @@ class FigmaAttachment(Base):
             self.frame_title = frame_title
         if description is not None:
             self.description = description
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 # Export the model class for easy imports

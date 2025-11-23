@@ -14,7 +14,7 @@ Access Control:
     - All grants are tracked with grantor information for audit purposes
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -117,7 +117,7 @@ class FigmaInstallationAccess(Base):
     created_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when access was granted'
     )
@@ -125,8 +125,8 @@ class FigmaInstallationAccess(Base):
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when access record was last updated'
     )
@@ -231,8 +231,8 @@ class FigmaInstallationAccess(Base):
         Note:
             The caller is responsible for committing the transaction.
         """
-        self.deleted_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
     
     def update_access_level(self, new_level: str) -> None:
         """
@@ -251,7 +251,7 @@ class FigmaInstallationAccess(Base):
                 f"Must be one of: {', '.join(valid_levels)}"
             )
         self.access_level = new_level
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 # Export the model class for easy imports

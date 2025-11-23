@@ -14,7 +14,7 @@ The status field in this model tracks the computed validity state of the PAT
 the Figma API.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -126,7 +126,7 @@ class FigmaInstallation(Base):
     created_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when the installation was created'
     )
@@ -134,8 +134,8 @@ class FigmaInstallation(Base):
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         server_default='now()',
         comment='Timestamp when the installation was last updated'
     )
@@ -272,8 +272,8 @@ class FigmaInstallation(Base):
             The caller is responsible for committing the transaction and
             handling Secret Manager deletion.
         """
-        self.deleted_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
     
     def update_status(self, new_status: str) -> None:
         """
@@ -292,7 +292,7 @@ class FigmaInstallation(Base):
                 f"Must be one of: {', '.join(valid_statuses)}"
             )
         self.status = new_status
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 # Export the model class for easy imports
