@@ -170,10 +170,11 @@ class FigmaAttachment(Base):
     )
 
     # Relationships
-    # NOTE: Relationships to external models (Project, TechSpec, User) are NOT defined here
-    # because those models exist in separate packages (archie-service-admin, archie-service-backend).
-    # Services that use this model should define those relationships in their own codebase
-    # where all models are available in the same SQLAlchemy registry.
+    # NOTE: Relationships to external models (Project, TechSpec, User) are NOT
+    # defined here because those models exist in separate packages
+    # (archie-service-admin, archie-service-backend). Services that use this
+    # model should define those relationships in their own codebase where all
+    # models are available in the same SQLAlchemy registry.
     #
     # Only the relationship to FigmaInstallation is defined here since it's in the same package.
 
