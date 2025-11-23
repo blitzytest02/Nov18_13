@@ -11,17 +11,17 @@ Blueprints:
 
 Usage:
     To register the Figma blueprint with your Flask application:
-    
+
     from flask import Flask
     from src.routes import figma_blueprint
-    
+
     app = Flask(__name__)
-    
+
     # Register with URL prefix for public endpoints
     # Note: The blueprint contains both /v1/figma/* and /internal/figma/* routes
     # Individual routes define their full paths in decorators
     app.register_blueprint(figma_blueprint)
-    
+
     # Alternatively, specify url_prefix if routes use relative paths:
     # app.register_blueprint(figma_blueprint, url_prefix='/v1/figma')
 
