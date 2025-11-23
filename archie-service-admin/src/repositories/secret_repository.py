@@ -109,7 +109,7 @@ class SecretManagerError(Exception):
         self,
         message: str,
         original_exception: Optional[Exception] = None,
-        operation: Optional[str] = None
+        operation: Optional[str] = None,
     ):
         """
         Initialize SecretManagerError with context information.
@@ -199,6 +199,7 @@ class SecretRepository(ISecretRepository):
         # Import ConfigRepository here to avoid circular imports at module level
         if config_repo is None:
             from .config_repository import ConfigRepository
+
             config_repo = ConfigRepository()
 
         self._config_repo = config_repo
@@ -213,13 +214,12 @@ class SecretRepository(ISecretRepository):
             logger.error(f"Failed to retrieve GCP project ID: {e}")
             raise ValueError(f"Unable to initialize SecretRepository: {e}")
 
-        logger.info(f"SecretRepository initialized for project: {self._project_id}")
+        logger.info(
+            f"SecretRepository initialized for project: {self._project_id}"
+        )
 
     def create_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Create a new secret in Google Cloud Secret Manager.
@@ -273,7 +273,9 @@ class SecretRepository(ISecretRepository):
         # Construct resource paths
         parent = f"projects/{self._project_id}"
 
-        logger.info(f"Creating secret: {secret_name} (project: {self._project_id})")
+        logger.info(
+            f"Creating secret: {secret_name} (project: {self._project_id})"
+        )
 
         # Retry loop with exponential backoff
         attempt = 0
@@ -291,7 +293,7 @@ class SecretRepository(ISecretRepository):
                             "replication": {
                                 "automatic": {}  # Replicate to all regions for high availability
                             }
-                        }
+                        },
                     }
                 )
 
@@ -302,12 +304,16 @@ class SecretRepository(ISecretRepository):
                     request={
                         "parent": secret.name,
                         "payload": {
-                            "data": secret_value.encode("UTF-8")  # Encode string to bytes
-                        }
+                            "data": secret_value.encode(
+                                "UTF-8"
+                            )  # Encode string to bytes
+                        },
                     }
                 )
 
-                logger.info(f"Secret created successfully: {secret_name} (version: {version.name})")
+                logger.info(
+                    f"Secret created successfully: {secret_name} (version: {version.name})"
+                )
                 return True
 
             except gcp_exceptions.AlreadyExists as e:
@@ -316,21 +322,26 @@ class SecretRepository(ISecretRepository):
                 raise SecretManagerError(
                     f"Secret '{secret_name}' already exists in project '{self._project_id}'",
                     original_exception=e,
-                    operation="create_secret"
+                    operation="create_secret",
                 )
 
             except gcp_exceptions.PermissionDenied as e:
                 # Permission denied - permanent error, do not retry
                 # Per section 0.3 Key Discovery 7: Check IAM roles for service account
-                logger.error(f"Permission denied creating secret {secret_name}: {e}")
+                logger.error(
+                    f"Permission denied creating secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Permission denied: Service account lacks "
                     f"roles/secretmanager.admin for project '{self._project_id}'",
                     original_exception=e,
-                    operation="create_secret"
+                    operation="create_secret",
                 )
 
-            except (gcp_exceptions.DeadlineExceeded, gcp_exceptions.ServiceUnavailable) as e:
+            except (
+                gcp_exceptions.DeadlineExceeded,
+                gcp_exceptions.ServiceUnavailable,
+            ) as e:
                 # Transient errors - retry with exponential backoff
                 attempt += 1
                 last_exception = e
@@ -353,23 +364,25 @@ class SecretRepository(ISecretRepository):
                         f"Failed to create secret '{secret_name}' "
                         f"after {retry_count} attempts: {e}",
                         original_exception=e,
-                        operation="create_secret"
+                        operation="create_secret",
                     )
 
             except Exception as e:
                 # Unexpected error - log and raise immediately without retry
-                logger.error(f"Unexpected error creating secret {secret_name}: {e}")
+                logger.error(
+                    f"Unexpected error creating secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Unexpected error creating secret '{secret_name}': {e}",
                     original_exception=e,
-                    operation="create_secret"
+                    operation="create_secret",
                 )
 
         # Should not reach here, but handle edge case
         raise SecretManagerError(
             f"Failed to create secret '{secret_name}' after {retry_count} attempts",
             original_exception=last_exception,
-            operation="create_secret"
+            operation="create_secret",
         )
 
     def get_secret(self, secret_name: str) -> Optional[str]:
@@ -431,11 +444,15 @@ class SecretRepository(ISecretRepository):
         # Per section 0.4: Use 'latest' alias to get most recent enabled version
         name = f"projects/{self._project_id}/secrets/{secret_name}/versions/latest"
 
-        logger.debug(f"Retrieving secret: {secret_name} (project: {self._project_id})")
+        logger.debug(
+            f"Retrieving secret: {secret_name} (project: {self._project_id})"
+        )
 
         try:
             # Access the secret version and retrieve payload
-            response = self._client.access_secret_version(request={"name": name})
+            response = self._client.access_secret_version(
+                request={"name": name}
+            )
 
             # Decode bytes to string
             # Per section 0.4: Pattern from research shows decode("UTF-8")
@@ -447,33 +464,36 @@ class SecretRepository(ISecretRepository):
         except gcp_exceptions.NotFound:
             # Secret does not exist - return None (not an error condition)
             # Per interface contract: "Secret does not exist: Returns None"
-            logger.info(f"Secret {secret_name} not found in project {self._project_id}")
+            logger.info(
+                f"Secret {secret_name} not found in project {self._project_id}"
+            )
             return None
 
         except gcp_exceptions.PermissionDenied as e:
             # Permission denied - raise as SecretManagerError
-            logger.error(f"Permission denied accessing secret {secret_name}: {e}")
+            logger.error(
+                f"Permission denied accessing secret {secret_name}: {e}"
+            )
             raise SecretManagerError(
                 f"Permission denied: Service account lacks "
                 f"roles/secretmanager.secretAccessor for '{secret_name}'",
                 original_exception=e,
-                operation="get_secret"
+                operation="get_secret",
             )
 
         except Exception as e:
             # Unexpected error - log and raise
-            logger.error(f"Unexpected error retrieving secret {secret_name}: {e}")
+            logger.error(
+                f"Unexpected error retrieving secret {secret_name}: {e}"
+            )
             raise SecretManagerError(
                 f"Unexpected error retrieving secret '{secret_name}': {e}",
                 original_exception=e,
-                operation="get_secret"
+                operation="get_secret",
             )
 
     def update_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Update an existing secret by creating a new version with the provided PAT value.
@@ -554,7 +574,9 @@ class SecretRepository(ISecretRepository):
         # Construct resource path
         secret_path = f"projects/{self._project_id}/secrets/{secret_name}"
 
-        logger.info(f"Updating secret: {secret_name} (project: {self._project_id})")
+        logger.info(
+            f"Updating secret: {secret_name} (project: {self._project_id})"
+        )
 
         # Retry loop with exponential backoff
         attempt = 0
@@ -567,9 +589,7 @@ class SecretRepository(ISecretRepository):
                 version = self._client.add_secret_version(
                     request={
                         "parent": secret_path,
-                        "payload": {
-                            "data": secret_value.encode("UTF-8")
-                        }
+                        "payload": {"data": secret_value.encode("UTF-8")},
                     }
                 )
 
@@ -585,20 +605,25 @@ class SecretRepository(ISecretRepository):
                 raise SecretManagerError(
                     f"Secret '{secret_name}' does not exist in project '{self._project_id}'",
                     original_exception=e,
-                    operation="update_secret"
+                    operation="update_secret",
                 )
 
             except gcp_exceptions.PermissionDenied as e:
                 # Permission denied - permanent error, do not retry
-                logger.error(f"Permission denied updating secret {secret_name}: {e}")
+                logger.error(
+                    f"Permission denied updating secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Permission denied: Service account lacks permissions "
                     f"to update '{secret_name}'",
                     original_exception=e,
-                    operation="update_secret"
+                    operation="update_secret",
                 )
 
-            except (gcp_exceptions.DeadlineExceeded, gcp_exceptions.ServiceUnavailable) as e:
+            except (
+                gcp_exceptions.DeadlineExceeded,
+                gcp_exceptions.ServiceUnavailable,
+            ) as e:
                 # Transient errors - retry with exponential backoff
                 attempt += 1
                 last_exception = e
@@ -621,30 +646,28 @@ class SecretRepository(ISecretRepository):
                         f"Failed to update secret '{secret_name}' "
                         f"after {retry_count} attempts: {e}",
                         original_exception=e,
-                        operation="update_secret"
+                        operation="update_secret",
                     )
 
             except Exception as e:
                 # Unexpected error - log and raise immediately without retry
-                logger.error(f"Unexpected error updating secret {secret_name}: {e}")
+                logger.error(
+                    f"Unexpected error updating secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Unexpected error updating secret '{secret_name}': {e}",
                     original_exception=e,
-                    operation="update_secret"
+                    operation="update_secret",
                 )
 
         # Should not reach here, but handle edge case
         raise SecretManagerError(
             f"Failed to update secret '{secret_name}' after {retry_count} attempts",
             original_exception=last_exception,
-            operation="update_secret"
+            operation="update_secret",
         )
 
-    def delete_secret(
-        self,
-        secret_name: str,
-        retry_count: int = 3
-    ) -> bool:
+    def delete_secret(self, secret_name: str, retry_count: int = 3) -> bool:
         """
         Delete a secret and all its versions from Google Cloud Secret Manager.
 
@@ -728,7 +751,9 @@ class SecretRepository(ISecretRepository):
         # Construct resource path
         name = f"projects/{self._project_id}/secrets/{secret_name}"
 
-        logger.info(f"Deleting secret: {secret_name} (project: {self._project_id})")
+        logger.info(
+            f"Deleting secret: {secret_name} (project: {self._project_id})"
+        )
 
         # Retry loop with exponential backoff
         attempt = 0
@@ -754,15 +779,20 @@ class SecretRepository(ISecretRepository):
 
             except gcp_exceptions.PermissionDenied as e:
                 # Permission denied - permanent error, do not retry
-                logger.error(f"Permission denied deleting secret {secret_name}: {e}")
+                logger.error(
+                    f"Permission denied deleting secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Permission denied: Service account lacks permissions "
                     f"to delete '{secret_name}'",
                     original_exception=e,
-                    operation="delete_secret"
+                    operation="delete_secret",
                 )
 
-            except (gcp_exceptions.DeadlineExceeded, gcp_exceptions.ServiceUnavailable) as e:
+            except (
+                gcp_exceptions.DeadlineExceeded,
+                gcp_exceptions.ServiceUnavailable,
+            ) as e:
                 # Transient errors - retry with exponential backoff
                 attempt += 1
                 last_exception = e
@@ -785,21 +815,23 @@ class SecretRepository(ISecretRepository):
                         f"Failed to delete secret '{secret_name}' "
                         f"after {retry_count} attempts: {e}",
                         original_exception=e,
-                        operation="delete_secret"
+                        operation="delete_secret",
                     )
 
             except Exception as e:
                 # Unexpected error - log and raise immediately without retry
-                logger.error(f"Unexpected error deleting secret {secret_name}: {e}")
+                logger.error(
+                    f"Unexpected error deleting secret {secret_name}: {e}"
+                )
                 raise SecretManagerError(
                     f"Unexpected error deleting secret '{secret_name}': {e}",
                     original_exception=e,
-                    operation="delete_secret"
+                    operation="delete_secret",
                 )
 
         # Should not reach here, but handle edge case
         raise SecretManagerError(
             f"Failed to delete secret '{secret_name}' after {retry_count} attempts",
             original_exception=last_exception,
-            operation="delete_secret"
+            operation="delete_secret",
         )

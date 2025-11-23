@@ -18,8 +18,14 @@ Indexes: project_id, tech_spec_id, figma_installation_id, deleted_at for efficie
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, BigInteger, String, Text, DateTime,
-    ForeignKey, UniqueConstraint, Index
+    Column,
+    BigInteger,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -76,22 +82,22 @@ class FigmaAttachment(Base):
     :ivar creator: Relationship to User model (user who created attachment)
     """
 
-    __tablename__ = 'figma_attachment'
+    __tablename__ = "figma_attachment"
 
     # Define table-level constraints and indexes
     __table_args__ = (
         # Unique constraint prevents duplicate frame URLs per project (last write wins)
         UniqueConstraint(
-            'project_id',
-            'frame_url',
-            'deleted_at',
-            name='uq_figma_attachment_project_frame_deleted'
+            "project_id",
+            "frame_url",
+            "deleted_at",
+            name="uq_figma_attachment_project_frame_deleted",
         ),
         # Indexes for efficient querying by foreign keys and soft delete status
-        Index('idx_figma_attachment_project', 'project_id'),
-        Index('idx_figma_attachment_techspec', 'tech_spec_id'),
-        Index('idx_figma_attachment_installation', 'figma_installation_id'),
-        Index('idx_figma_attachment_deleted', 'deleted_at'),
+        Index("idx_figma_attachment_project", "project_id"),
+        Index("idx_figma_attachment_techspec", "tech_spec_id"),
+        Index("idx_figma_attachment_installation", "figma_installation_id"),
+        Index("idx_figma_attachment_deleted", "deleted_at"),
     )
 
     # Primary Key
@@ -100,55 +106,55 @@ class FigmaAttachment(Base):
         primary_key=True,
         autoincrement=True,
         nullable=False,
-        comment='Unique identifier for the Figma frame attachment'
+        comment="Unique identifier for the Figma frame attachment",
     )
 
     # Foreign Keys
     project_id = Column(
         BigInteger,
-        ForeignKey('projects.id', ondelete='CASCADE'),
+        ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Project ID this frame is attached to, references projects table'
+        comment="Project ID this frame is attached to, references projects table",
     )
 
     tech_spec_id = Column(
         BigInteger,
-        ForeignKey('tech_specs.id', ondelete='CASCADE'),
+        ForeignKey("tech_specs.id", ondelete="CASCADE"),
         nullable=True,
-        comment='Optional tech spec association, references tech_specs table'
+        comment="Optional tech spec association, references tech_specs table",
     )
 
     figma_installation_id = Column(
         BigInteger,
-        ForeignKey('figma_installation.id', ondelete='CASCADE'),
+        ForeignKey("figma_installation.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Figma installation providing PAT credentials, references figma_installation table'
+        comment="Figma installation providing PAT credentials, references figma_installation table",
     )
 
     created_by = Column(
         BigInteger,
-        ForeignKey('users.id', ondelete='CASCADE'),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        comment='User ID who created the attachment, references users table'
+        comment="User ID who created the attachment, references users table",
     )
 
     # Data Fields
     frame_url = Column(
         Text,
         nullable=False,
-        comment='Full URL to the Figma frame (e.g., https://www.figma.com/file/...?node-id=...)'
+        comment="Full URL to the Figma frame (e.g., https://www.figma.com/file/...?node-id=...)",
     )
 
     frame_title = Column(
         String(500),
         nullable=True,
-        comment='Frame title retrieved from Figma API during validation'
+        comment="Frame title retrieved from Figma API during validation",
     )
 
     description = Column(
         Text,
         nullable=True,
-        comment='User-provided description of the frame purpose and context'
+        comment="User-provided description of the frame purpose and context",
     )
 
     # Timestamps
@@ -156,7 +162,7 @@ class FigmaAttachment(Base):
         DateTime,
         nullable=False,
         default=datetime.utcnow,
-        comment='Timestamp when attachment was created'
+        comment="Timestamp when attachment was created",
     )
 
     updated_at = Column(
@@ -164,47 +170,47 @@ class FigmaAttachment(Base):
         nullable=False,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        comment='Timestamp when attachment was last modified'
+        comment="Timestamp when attachment was last modified",
     )
 
     # Soft Delete Support
     deleted_at = Column(
         DateTime,
         nullable=True,
-        comment='Soft delete timestamp, NULL indicates active attachment'
+        comment="Soft delete timestamp, NULL indicates active attachment",
     )
 
     # Relationships
     installation = relationship(
-        'FigmaInstallation',
+        "FigmaInstallation",
         foreign_keys=[figma_installation_id],
-        back_populates='attachments',
-        lazy='joined',
-        doc='The Figma installation providing PAT credentials for this attachment'
+        back_populates="attachments",
+        lazy="joined",
+        doc="The Figma installation providing PAT credentials for this attachment",
     )
 
     project = relationship(
-        'Project',
+        "Project",
         foreign_keys=[project_id],
-        backref='figma_attachments',
-        lazy='joined',
-        doc='The project this frame is attached to'
+        backref="figma_attachments",
+        lazy="joined",
+        doc="The project this frame is attached to",
     )
 
     tech_spec = relationship(
-        'TechSpec',
+        "TechSpec",
         foreign_keys=[tech_spec_id],
-        backref='figma_attachments',
-        lazy='joined',
-        doc='Optional tech spec this frame is specifically associated with'
+        backref="figma_attachments",
+        lazy="joined",
+        doc="Optional tech spec this frame is specifically associated with",
     )
 
     creator = relationship(
-        'User',
+        "User",
         foreign_keys=[created_by],
-        backref='created_figma_attachments',
-        lazy='joined',
-        doc='The user who created this attachment'
+        backref="created_figma_attachments",
+        lazy="joined",
+        doc="The user who created this attachment",
     )
 
     def __repr__(self) -> str:

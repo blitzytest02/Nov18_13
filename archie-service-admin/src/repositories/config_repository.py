@@ -182,17 +182,17 @@ class ConfigRepository(IConfigRepository):
             return default
 
         # Handle empty string as default
-        if value == '':
+        if value == "":
             return default
 
         # Normalize to lowercase for comparison
         lower_value = value.lower().strip()
 
         # Define truthy values
-        truthy_values = ('true', 't', '1', 'yes', 'y', 'on', 'enabled')
+        truthy_values = ("true", "t", "1", "yes", "y", "on", "enabled")
 
         # Define falsy values
-        falsy_values = ('false', 'f', '0', 'no', 'n', 'off', 'disabled')
+        falsy_values = ("false", "f", "0", "no", "n", "off", "disabled")
 
         if lower_value in truthy_values:
             return True
@@ -251,7 +251,7 @@ class ConfigRepository(IConfigRepository):
             return default
 
         # Handle empty string as default
-        if value == '':
+        if value == "":
             return default
 
         # Attempt integer conversion
@@ -307,7 +307,7 @@ class ConfigRepository(IConfigRepository):
             Per section A.1.5 of the Agent Action Plan, secrets are stored with the
             pattern: projects/{project_id}/secrets/figma-secret-{installation_id}
         """
-        project_id = os.environ.get('GCP_PROJECT_ID', '').strip()
+        project_id = os.environ.get("GCP_PROJECT_ID", "").strip()
 
         if not project_id:
             error_msg = (

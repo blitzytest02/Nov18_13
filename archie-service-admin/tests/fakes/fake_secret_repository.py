@@ -84,6 +84,7 @@ class SecretManagerError(Exception):
             service.create_installation(user_id=1, name='Test', pat='token')
         assert 'Failed to create secret' in str(exc_info.value)
     """
+
     pass
 
 
@@ -175,10 +176,7 @@ class FakeSecretRepository(ISecretRepository):
         self.fail_on_get: bool = False
 
     def create_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Simulate creating a new secret in Secret Manager.
@@ -266,10 +264,7 @@ class FakeSecretRepository(ISecretRepository):
         return self._secrets.get(secret_name)
 
     def update_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Simulate updating an existing secret by creating a new version.
@@ -324,11 +319,7 @@ class FakeSecretRepository(ISecretRepository):
         self._secrets[secret_name] = secret_value
         return True
 
-    def delete_secret(
-        self,
-        secret_name: str,
-        retry_count: int = 3
-    ) -> bool:
+    def delete_secret(self, secret_name: str, retry_count: int = 3) -> bool:
         """
         Simulate deleting a secret from Secret Manager.
 
@@ -496,10 +487,10 @@ class FakeSecretRepository(ISecretRepository):
         :rtype: Dict[str, int]
         """
         return {
-            'create_count': self._create_count,
-            'get_count': self._get_count,
-            'update_count': self._update_count,
-            'delete_count': self._delete_count
+            "create_count": self._create_count,
+            "get_count": self._get_count,
+            "update_count": self._update_count,
+            "delete_count": self._delete_count,
         }
 
     def clear(self) -> None:
@@ -551,11 +542,11 @@ class FakeSecretRepository(ISecretRepository):
             return False
 
         # Check prefix
-        if not secret_name.startswith('figma-secret-'):
+        if not secret_name.startswith("figma-secret-"):
             return False
 
         # Extract suffix after prefix
-        suffix = secret_name[len('figma-secret-'):]
+        suffix = secret_name[len("figma-secret-") :]
 
         # Verify suffix is numeric (installation ID)
         if not suffix:

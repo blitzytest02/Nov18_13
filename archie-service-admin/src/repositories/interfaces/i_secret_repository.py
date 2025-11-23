@@ -74,10 +74,7 @@ class ISecretRepository(ABC):
 
     @abstractmethod
     def create_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Create a new secret in Google Cloud Secret Manager.
@@ -198,10 +195,7 @@ class ISecretRepository(ABC):
 
     @abstractmethod
     def update_secret(
-        self,
-        secret_name: str,
-        secret_value: str,
-        retry_count: int = 3
+        self, secret_name: str, secret_value: str, retry_count: int = 3
     ) -> bool:
         """
         Update an existing secret by creating a new version with the provided value.
@@ -277,11 +271,7 @@ class ISecretRepository(ABC):
         pass
 
     @abstractmethod
-    def delete_secret(
-        self,
-        secret_name: str,
-        retry_count: int = 3
-    ) -> bool:
+    def delete_secret(self, secret_name: str, retry_count: int = 3) -> bool:
         """
         Delete a secret and all its versions from Google Cloud Secret Manager.
 

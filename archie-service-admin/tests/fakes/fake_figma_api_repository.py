@@ -52,7 +52,9 @@ Thread Safety:
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from src.repositories.interfaces.i_figma_api_repository import IFigmaAPIRepository
+from src.repositories.interfaces.i_figma_api_repository import (
+    IFigmaAPIRepository,
+)
 
 
 class FakeFigmaAPIRepository(IFigmaAPIRepository):
@@ -182,7 +184,9 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
 
         # Simulate error if configured
         if self.raise_on_validate_pat:
-            raise RuntimeError("Simulated Figma API error during PAT validation")
+            raise RuntimeError(
+                "Simulated Figma API error during PAT validation"
+            )
 
         # Check explicit invalid configuration first
         if pat in self.invalid_pats:
@@ -195,7 +199,9 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         # Fall back to default behavior
         return self.default_all_valid
 
-    def validate_frame_access(self, pat: str, frame_url: str) -> Dict[str, Any]:
+    def validate_frame_access(
+        self, pat: str, frame_url: str
+    ) -> Dict[str, Any]:
         """
         Validate PAT access to frame and return configured response.
 
@@ -275,16 +281,10 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
             return deepcopy(self.frame_responses[frame_url])
 
         # Default response: successful validation with mock title
-        return {
-            "valid": True,
-            "title": "Mock Frame Title",
-            "message": ""
-        }
+        return {"valid": True, "title": "Mock Frame Title", "message": ""}
 
     def get_frame_metadata(
-        self,
-        pat: str,
-        frame_url: str
+        self, pat: str, frame_url: str
     ) -> Optional[Dict[str, Any]]:
         """
         Retrieve frame metadata using configured response.
@@ -368,8 +368,8 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
                 "x": 0,
                 "y": 0,
                 "width": 375,
-                "height": 812
-            }
+                "height": 812,
+            },
         }
 
     def set_pat_valid(self, pat: str, valid: bool = True) -> None:
@@ -414,11 +414,7 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
             self.valid_pats.discard(pat)  # Remove from valid if present
 
     def set_frame_response(
-        self,
-        frame_url: str,
-        valid: bool,
-        title: str = "",
-        message: str = ""
+        self, frame_url: str, valid: bool, title: str = "", message: str = ""
     ) -> None:
         """
         Configure frame validation response for testing.
@@ -487,7 +483,7 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         self.frame_responses[frame_url] = {
             "valid": valid,
             "title": title,
-            "message": message
+            "message": message,
         }
 
     def configure_default_behavior(self, all_valid: bool = True) -> None:
@@ -628,5 +624,5 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         return {
             "validate_pat": len(self.validate_pat_calls),
             "validate_frame_access": len(self.validate_frame_calls),
-            "get_frame_metadata": len(self.get_frame_metadata_calls)
+            "get_frame_metadata": len(self.get_frame_metadata_calls),
         }

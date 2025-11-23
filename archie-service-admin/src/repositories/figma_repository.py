@@ -110,7 +110,7 @@ class FigmaRepository(IFigmaRepository):
         user_id: int,
         name: str,
         description: Optional[str] = None,
-        team_id: Optional[int] = None
+        team_id: Optional[int] = None,
     ) -> FigmaInstallation:
         """
         Create a new Figma installation record in the database.
@@ -148,9 +148,9 @@ class FigmaRepository(IFigmaRepository):
             name=name,
             description=description,
             team_id=team_id,
-            status='active',
+            status="active",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         self.db.add(installation)
@@ -160,7 +160,9 @@ class FigmaRepository(IFigmaRepository):
 
         return installation
 
-    def get_installation(self, installation_id: int) -> Optional[FigmaInstallation]:
+    def get_installation(
+        self, installation_id: int
+    ) -> Optional[FigmaInstallation]:
         """
         Retrieve a Figma installation by ID, excluding soft-deleted records.
 
@@ -179,15 +181,17 @@ class FigmaRepository(IFigmaRepository):
         :return: FigmaInstallation if found and active, None otherwise
         :rtype: Optional[FigmaInstallation]
         """
-        return self.db.query(FigmaInstallation).filter(
-            FigmaInstallation.id == installation_id,
-            FigmaInstallation.deleted_at.is_(None)
-        ).first()
+        return (
+            self.db.query(FigmaInstallation)
+            .filter(
+                FigmaInstallation.id == installation_id,
+                FigmaInstallation.deleted_at.is_(None),
+            )
+            .first()
+        )
 
     def update_installation(
-        self,
-        installation_id: int,
-        **kwargs
+        self, installation_id: int, **kwargs
     ) -> FigmaInstallation:
         """
         Update fields on an existing Figma installation.
@@ -219,7 +223,9 @@ class FigmaRepository(IFigmaRepository):
         """
         installation = self.get_installation(installation_id)
         if not installation:
-            raise ValueError(f"Installation {installation_id} not found or deleted")
+            raise ValueError(
+                f"Installation {installation_id} not found or deleted"
+            )
 
         # Update specified fields
         for key, value in kwargs.items():
@@ -272,9 +278,7 @@ class FigmaRepository(IFigmaRepository):
         return True
 
     def list_installations(
-        self,
-        user_id: Optional[int] = None,
-        team_id: Optional[int] = None
+        self, user_id: Optional[int] = None, team_id: Optional[int] = None
     ) -> List[FigmaInstallation]:
         """
         List Figma installations with optional filtering by user or team.
@@ -309,8 +313,8 @@ class FigmaRepository(IFigmaRepository):
         # Apply filters with OR logic if both provided
         if user_id is not None and team_id is not None:
             query = query.filter(
-                (FigmaInstallation.user_id == user_id) |
-                (FigmaInstallation.team_id == team_id)
+                (FigmaInstallation.user_id == user_id)
+                | (FigmaInstallation.team_id == team_id)
             )
         elif user_id is not None:
             query = query.filter(FigmaInstallation.user_id == user_id)
@@ -328,7 +332,7 @@ class FigmaRepository(IFigmaRepository):
         installation_id: int,
         user_id: int,
         granted_by: int,
-        access_level: str = "viewer"
+        access_level: str = "viewer",
     ) -> FigmaInstallationAccess:
         """
         Grant a user access to a Figma installation.
@@ -374,7 +378,7 @@ class FigmaRepository(IFigmaRepository):
             granted_by=granted_by,
             access_level=access_level,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         self.db.add(access)
@@ -408,11 +412,16 @@ class FigmaRepository(IFigmaRepository):
         :return: True if access revoked, False if no active grant found
         :rtype: bool
         """
-        access_grants = self.db.query(FigmaInstallationAccess).filter(
-            FigmaInstallationAccess.figma_installation_id == installation_id,
-            FigmaInstallationAccess.user_id == user_id,
-            FigmaInstallationAccess.deleted_at.is_(None)
-        ).all()
+        access_grants = (
+            self.db.query(FigmaInstallationAccess)
+            .filter(
+                FigmaInstallationAccess.figma_installation_id
+                == installation_id,
+                FigmaInstallationAccess.user_id == user_id,
+                FigmaInstallationAccess.deleted_at.is_(None),
+            )
+            .all()
+        )
 
         if not access_grants:
             return False
@@ -424,7 +433,9 @@ class FigmaRepository(IFigmaRepository):
         self.db.flush()
         return True
 
-    def list_access(self, installation_id: int) -> List[FigmaInstallationAccess]:
+    def list_access(
+        self, installation_id: int
+    ) -> List[FigmaInstallationAccess]:
         """
         List all users with active access to a Figma installation.
 
@@ -447,10 +458,15 @@ class FigmaRepository(IFigmaRepository):
         :return: List of active FigmaInstallationAccess entities
         :rtype: List[FigmaInstallationAccess]
         """
-        return self.db.query(FigmaInstallationAccess).filter(
-            FigmaInstallationAccess.figma_installation_id == installation_id,
-            FigmaInstallationAccess.deleted_at.is_(None)
-        ).all()
+        return (
+            self.db.query(FigmaInstallationAccess)
+            .filter(
+                FigmaInstallationAccess.figma_installation_id
+                == installation_id,
+                FigmaInstallationAccess.deleted_at.is_(None),
+            )
+            .all()
+        )
 
     # ============================================================================
     # Figma Attachment Operations
@@ -464,7 +480,7 @@ class FigmaRepository(IFigmaRepository):
         created_by: int,
         frame_title: Optional[str] = None,
         description: Optional[str] = None,
-        tech_spec_id: Optional[int] = None
+        tech_spec_id: Optional[int] = None,
     ) -> FigmaAttachment:
         """
         Create or update a Figma frame attachment with idempotent behavior.
@@ -511,11 +527,15 @@ class FigmaRepository(IFigmaRepository):
         :rtype: FigmaAttachment
         """
         # Check for existing active attachment with same project and URL
-        existing = self.db.query(FigmaAttachment).filter(
-            FigmaAttachment.project_id == project_id,
-            FigmaAttachment.frame_url == frame_url,
-            FigmaAttachment.deleted_at.is_(None)
-        ).first()
+        existing = (
+            self.db.query(FigmaAttachment)
+            .filter(
+                FigmaAttachment.project_id == project_id,
+                FigmaAttachment.frame_url == frame_url,
+                FigmaAttachment.deleted_at.is_(None),
+            )
+            .first()
+        )
 
         if existing:
             # Update existing attachment (idempotent behavior)
@@ -538,7 +558,7 @@ class FigmaRepository(IFigmaRepository):
             description=description,
             created_by=created_by,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         self.db.add(attachment)
@@ -564,15 +584,17 @@ class FigmaRepository(IFigmaRepository):
         :return: FigmaAttachment if found and active, None otherwise
         :rtype: Optional[FigmaAttachment]
         """
-        return self.db.query(FigmaAttachment).filter(
-            FigmaAttachment.id == attachment_id,
-            FigmaAttachment.deleted_at.is_(None)
-        ).first()
+        return (
+            self.db.query(FigmaAttachment)
+            .filter(
+                FigmaAttachment.id == attachment_id,
+                FigmaAttachment.deleted_at.is_(None),
+            )
+            .first()
+        )
 
     def list_attachments(
-        self,
-        project_id: int,
-        tech_spec_id: Optional[int] = None
+        self, project_id: int, tech_spec_id: Optional[int] = None
     ) -> List[FigmaAttachment]:
         """
         List Figma attachments for a project, optionally filtered by tech spec.
@@ -603,7 +625,7 @@ class FigmaRepository(IFigmaRepository):
         """
         query = self.db.query(FigmaAttachment).filter(
             FigmaAttachment.project_id == project_id,
-            FigmaAttachment.deleted_at.is_(None)
+            FigmaAttachment.deleted_at.is_(None),
         )
 
         if tech_spec_id is not None:

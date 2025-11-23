@@ -64,7 +64,7 @@ FRAME_OPERATION_TIMEOUT = 15
 # Regex patterns for parsing Figma URLs
 # Matches: https://www.figma.com/file/{file_key}/... or .../design/{file_key}/...
 FIGMA_URL_PATTERN = re.compile(
-    r'https://(?:www\.)?figma\.com/(?:file|design)/([a-zA-Z0-9]+)(?:/[^?]*)?'
+    r"https://(?:www\.)?figma\.com/(?:file|design)/([a-zA-Z0-9]+)(?:/[^?]*)?"
 )
 
 
@@ -161,15 +161,13 @@ class FigmaAPIRepository(IFigmaAPIRepository):
             url = f"{FIGMA_API_BASE}/me"
             headers = {
                 "Authorization": f"Bearer {pat}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             logger.debug(f"Validating PAT by calling {url}")
 
             response = requests.get(
-                url,
-                headers=headers,
-                timeout=PAT_VALIDATION_TIMEOUT
+                url, headers=headers, timeout=PAT_VALIDATION_TIMEOUT
             )
 
             # Check if response is successful (200 OK)
@@ -179,18 +177,28 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
             # Log specific HTTP error codes for debugging
             if response.status_code == 401:
-                logger.warning("PAT validation failed: 401 Unauthorized (invalid or expired token)")
+                logger.warning(
+                    "PAT validation failed: 401 Unauthorized (invalid or expired token)"
+                )
             elif response.status_code == 403:
-                logger.warning("PAT validation failed: 403 Forbidden (revoked token)")
+                logger.warning(
+                    "PAT validation failed: 403 Forbidden (revoked token)"
+                )
             elif response.status_code == 429:
-                logger.warning("PAT validation failed: 429 Rate limit exceeded")
+                logger.warning(
+                    "PAT validation failed: 429 Rate limit exceeded"
+                )
             else:
-                logger.warning(f"PAT validation failed: HTTP {response.status_code}")
+                logger.warning(
+                    f"PAT validation failed: HTTP {response.status_code}"
+                )
 
             return False
 
         except Timeout:
-            logger.error(f"PAT validation timeout after {PAT_VALIDATION_TIMEOUT} seconds")
+            logger.error(
+                f"PAT validation timeout after {PAT_VALIDATION_TIMEOUT} seconds"
+            )
             return False
 
         except RequestException as e:
@@ -199,10 +207,14 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
         except Exception as e:
             # Catch any unexpected errors to ensure we never raise
-            logger.error(f"PAT validation unexpected error: {e}", exc_info=True)
+            logger.error(
+                f"PAT validation unexpected error: {e}", exc_info=True
+            )
             return False
 
-    def validate_frame_access(self, pat: str, frame_url: str) -> Dict[str, Any]:
+    def validate_frame_access(
+        self, pat: str, frame_url: str
+    ) -> Dict[str, Any]:
         """
         Validate PAT has access to frame and retrieve frame metadata.
 
@@ -280,19 +292,27 @@ class FigmaAPIRepository(IFigmaAPIRepository):
         """
         # Validate inputs
         if not pat or not isinstance(pat, str) or not pat.strip():
-            logger.warning("validate_frame_access called with empty or invalid PAT")
+            logger.warning(
+                "validate_frame_access called with empty or invalid PAT"
+            )
             return {
                 "valid": False,
                 "title": "",
-                "message": "Personal Access Token is required"
+                "message": "Personal Access Token is required",
             }
 
-        if not frame_url or not isinstance(frame_url, str) or not frame_url.strip():
-            logger.warning("validate_frame_access called with empty or invalid frame_url")
+        if (
+            not frame_url
+            or not isinstance(frame_url, str)
+            or not frame_url.strip()
+        ):
+            logger.warning(
+                "validate_frame_access called with empty or invalid frame_url"
+            )
             return {
                 "valid": False,
                 "title": "",
-                "message": "Frame URL is required"
+                "message": "Frame URL is required",
             }
 
         # Parse the Figma URL to extract file_key and node_id
@@ -302,30 +322,30 @@ class FigmaAPIRepository(IFigmaAPIRepository):
             return {
                 "valid": False,
                 "title": "",
-                "message": "Invalid Figma frame URL format"
+                "message": "Invalid Figma frame URL format",
             }
 
-        file_key = parsed_data['file_key']
-        node_id = parsed_data['node_id']
+        file_key = parsed_data["file_key"]
+        node_id = parsed_data["node_id"]
 
         try:
             # Construct Figma API endpoint for node retrieval
             url = f"{FIGMA_API_BASE}/files/{file_key}/nodes"
             headers = {
                 "Authorization": f"Bearer {pat}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
-            params = {
-                "ids": node_id
-            }
+            params = {"ids": node_id}
 
-            logger.debug(f"Validating frame access: file_key={file_key}, node_id={node_id}")
+            logger.debug(
+                f"Validating frame access: file_key={file_key}, node_id={node_id}"
+            )
 
             response = requests.get(
                 url,
                 headers=headers,
                 params=params,
-                timeout=FRAME_OPERATION_TIMEOUT
+                timeout=FRAME_OPERATION_TIMEOUT,
             )
 
             # Handle successful response
@@ -335,26 +355,33 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
                     # Navigate to the frame/node data in the response
                     # Expected structure: {"nodes": {"{node_id}": {"document": {"name": "..."}}}}
-                    if 'nodes' in data and node_id in data['nodes']:
-                        node_data = data['nodes'][node_id]
+                    if "nodes" in data and node_id in data["nodes"]:
+                        node_data = data["nodes"][node_id]
 
                         # Check if the node was successfully retrieved
                         if node_data is None:
-                            logger.warning(f"Node {node_id} not found in file {file_key}")
+                            logger.warning(
+                                f"Node {node_id} not found in file {file_key}"
+                            )
                             return {
                                 "valid": False,
                                 "title": "",
-                                "message": "Frame not found in the specified file"
+                                "message": "Frame not found in the specified file",
                             }
 
                         # Extract the frame name/title
-                        if 'document' in node_data and 'name' in node_data['document']:
-                            frame_title = node_data['document']['name']
-                            logger.info(f"Frame access validated successfully: {frame_title}")
+                        if (
+                            "document" in node_data
+                            and "name" in node_data["document"]
+                        ):
+                            frame_title = node_data["document"]["name"]
+                            logger.info(
+                                f"Frame access validated successfully: {frame_title}"
+                            )
                             return {
                                 "valid": True,
                                 "title": frame_title,
-                                "message": ""
+                                "message": "",
                             }
                         else:
                             logger.warning(
@@ -364,31 +391,35 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                             return {
                                 "valid": False,
                                 "title": "",
-                                "message": "Could not retrieve frame information"
+                                "message": "Could not retrieve frame information",
                             }
                     else:
                         logger.warning(f"Node {node_id} not found in response")
                         return {
                             "valid": False,
                             "title": "",
-                            "message": "Frame not found or inaccessible"
+                            "message": "Frame not found or inaccessible",
                         }
 
                 except ValueError as e:
-                    logger.error(f"Failed to parse Figma API JSON response: {e}")
+                    logger.error(
+                        f"Failed to parse Figma API JSON response: {e}"
+                    )
                     return {
                         "valid": False,
                         "title": "",
-                        "message": "Invalid response from Figma API"
+                        "message": "Invalid response from Figma API",
                     }
 
             # Handle HTTP error responses
             elif response.status_code == 401:
-                logger.warning("Frame access validation failed: 401 Unauthorized")
+                logger.warning(
+                    "Frame access validation failed: 401 Unauthorized"
+                )
                 return {
                     "valid": False,
                     "title": "",
-                    "message": "Invalid or expired Personal Access Token"
+                    "message": "Invalid or expired Personal Access Token",
                 }
 
             elif response.status_code == 403:
@@ -396,7 +427,7 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                 return {
                     "valid": False,
                     "title": "",
-                    "message": "Access denied to this file"
+                    "message": "Access denied to this file",
                 }
 
             elif response.status_code == 404:
@@ -404,31 +435,37 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                 return {
                     "valid": False,
                     "title": "",
-                    "message": "Frame or file not found"
+                    "message": "Frame or file not found",
                 }
 
             elif response.status_code == 429:
-                logger.warning("Frame access validation failed: 429 Rate limit exceeded")
+                logger.warning(
+                    "Frame access validation failed: 429 Rate limit exceeded"
+                )
                 return {
                     "valid": False,
                     "title": "",
-                    "message": "Rate limit exceeded, please try again later"
+                    "message": "Rate limit exceeded, please try again later",
                 }
 
             else:
-                logger.warning(f"Frame access validation failed: HTTP {response.status_code}")
+                logger.warning(
+                    f"Frame access validation failed: HTTP {response.status_code}"
+                )
                 return {
                     "valid": False,
                     "title": "",
-                    "message": f"Figma API error: {response.status_code}"
+                    "message": f"Figma API error: {response.status_code}",
                 }
 
         except Timeout:
-            logger.error(f"Frame access validation timeout after {FRAME_OPERATION_TIMEOUT} seconds")
+            logger.error(
+                f"Frame access validation timeout after {FRAME_OPERATION_TIMEOUT} seconds"
+            )
             return {
                 "valid": False,
                 "title": "",
-                "message": "Request timeout - Figma API did not respond in time"
+                "message": "Request timeout - Figma API did not respond in time",
             }
 
         except RequestException as e:
@@ -436,19 +473,23 @@ class FigmaAPIRepository(IFigmaAPIRepository):
             return {
                 "valid": False,
                 "title": "",
-                "message": "Network error connecting to Figma API"
+                "message": "Network error connecting to Figma API",
             }
 
         except Exception as e:
             # Catch any unexpected errors to ensure we never raise
-            logger.error(f"Frame access validation unexpected error: {e}", exc_info=True)
+            logger.error(
+                f"Frame access validation unexpected error: {e}", exc_info=True
+            )
             return {
                 "valid": False,
                 "title": "",
-                "message": "An unexpected error occurred during validation"
+                "message": "An unexpected error occurred during validation",
             }
 
-    def get_frame_metadata(self, pat: str, frame_url: str) -> Optional[Dict[str, Any]]:
+    def get_frame_metadata(
+        self, pat: str, frame_url: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Retrieve comprehensive frame metadata from Figma API.
 
@@ -532,40 +573,50 @@ class FigmaAPIRepository(IFigmaAPIRepository):
         """
         # Validate inputs
         if not pat or not isinstance(pat, str) or not pat.strip():
-            logger.warning("get_frame_metadata called with empty or invalid PAT")
+            logger.warning(
+                "get_frame_metadata called with empty or invalid PAT"
+            )
             return None
 
-        if not frame_url or not isinstance(frame_url, str) or not frame_url.strip():
-            logger.warning("get_frame_metadata called with empty or invalid frame_url")
+        if (
+            not frame_url
+            or not isinstance(frame_url, str)
+            or not frame_url.strip()
+        ):
+            logger.warning(
+                "get_frame_metadata called with empty or invalid frame_url"
+            )
             return None
 
         # Parse the Figma URL to extract file_key and node_id
         parsed_data = self._parse_figma_url(frame_url)
         if not parsed_data:
-            logger.warning(f"Invalid Figma URL format for metadata retrieval: {frame_url}")
+            logger.warning(
+                f"Invalid Figma URL format for metadata retrieval: {frame_url}"
+            )
             return None
 
-        file_key = parsed_data['file_key']
-        node_id = parsed_data['node_id']
+        file_key = parsed_data["file_key"]
+        node_id = parsed_data["node_id"]
 
         try:
             # Construct Figma API endpoint for node retrieval
             url = f"{FIGMA_API_BASE}/files/{file_key}/nodes"
             headers = {
                 "Authorization": f"Bearer {pat}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
-            params = {
-                "ids": node_id
-            }
+            params = {"ids": node_id}
 
-            logger.debug(f"Retrieving frame metadata: file_key={file_key}, node_id={node_id}")
+            logger.debug(
+                f"Retrieving frame metadata: file_key={file_key}, node_id={node_id}"
+            )
 
             response = requests.get(
                 url,
                 headers=headers,
                 params=params,
-                timeout=FRAME_OPERATION_TIMEOUT
+                timeout=FRAME_OPERATION_TIMEOUT,
             )
 
             # Handle successful response
@@ -574,21 +625,23 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                     data = response.json()
 
                     # Navigate to the frame/node data in the response
-                    if 'nodes' in data and node_id in data['nodes']:
-                        node_data = data['nodes'][node_id]
+                    if "nodes" in data and node_id in data["nodes"]:
+                        node_data = data["nodes"][node_id]
 
                         # Check if the node was successfully retrieved
                         if node_data is None:
-                            logger.warning(f"Node {node_id} not found in file {file_key}")
+                            logger.warning(
+                                f"Node {node_id} not found in file {file_key}"
+                            )
                             return None
 
                         # Return the full document metadata
-                        if 'document' in node_data:
+                        if "document" in node_data:
                             logger.info(
                                 f"Frame metadata retrieved successfully "
                                 f"for node {node_id}"
                             )
-                            return node_data['document']
+                            return node_data["document"]
                         else:
                             logger.warning(
                                 "Unexpected response structure: "
@@ -600,28 +653,40 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                         return None
 
                 except ValueError as e:
-                    logger.error(f"Failed to parse Figma API JSON response: {e}")
+                    logger.error(
+                        f"Failed to parse Figma API JSON response: {e}"
+                    )
                     return None
 
             # Log HTTP error responses and return None
             elif response.status_code == 401:
-                logger.warning("Frame metadata retrieval failed: 401 Unauthorized")
+                logger.warning(
+                    "Frame metadata retrieval failed: 401 Unauthorized"
+                )
                 return None
 
             elif response.status_code == 403:
-                logger.warning("Frame metadata retrieval failed: 403 Forbidden")
+                logger.warning(
+                    "Frame metadata retrieval failed: 403 Forbidden"
+                )
                 return None
 
             elif response.status_code == 404:
-                logger.warning("Frame metadata retrieval failed: 404 Not Found")
+                logger.warning(
+                    "Frame metadata retrieval failed: 404 Not Found"
+                )
                 return None
 
             elif response.status_code == 429:
-                logger.warning("Frame metadata retrieval failed: 429 Rate limit exceeded")
+                logger.warning(
+                    "Frame metadata retrieval failed: 429 Rate limit exceeded"
+                )
                 return None
 
             else:
-                logger.warning(f"Frame metadata retrieval failed: HTTP {response.status_code}")
+                logger.warning(
+                    f"Frame metadata retrieval failed: HTTP {response.status_code}"
+                )
                 return None
 
         except Timeout:
@@ -637,7 +702,10 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
         except Exception as e:
             # Catch any unexpected errors to ensure we never raise
-            logger.error(f"Frame metadata retrieval unexpected error: {e}", exc_info=True)
+            logger.error(
+                f"Frame metadata retrieval unexpected error: {e}",
+                exc_info=True,
+            )
             return None
 
     def _parse_figma_url(self, frame_url: str) -> Optional[Dict[str, str]]:
@@ -683,12 +751,12 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
             # Extract node_id from query parameters
             query_params = parse_qs(parsed.query)
-            if 'node-id' not in query_params:
+            if "node-id" not in query_params:
                 logger.debug(f"URL missing node-id parameter: {frame_url}")
                 return None
 
             # node-id parameter value (decode URL encoding if present)
-            node_id = query_params['node-id'][0]
+            node_id = query_params["node-id"][0]
 
             # Validate that we have both required components
             if not file_key or not node_id:
@@ -698,10 +766,7 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                 )
                 return None
 
-            return {
-                'file_key': file_key,
-                'node_id': node_id
-            }
+            return {"file_key": file_key, "node_id": node_id}
 
         except Exception as e:
             logger.error(f"Error parsing Figma URL: {e}")

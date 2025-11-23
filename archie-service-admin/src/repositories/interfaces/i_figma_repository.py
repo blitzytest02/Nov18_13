@@ -100,7 +100,7 @@ class IFigmaRepository(ABC):
         user_id: int,
         name: str,
         description: Optional[str] = None,
-        team_id: Optional[int] = None
+        team_id: Optional[int] = None,
     ) -> "FigmaInstallation":
         """
         Create a new Figma installation record.
@@ -150,7 +150,9 @@ class IFigmaRepository(ABC):
         pass
 
     @abstractmethod
-    def get_installation(self, installation_id: int) -> Optional["FigmaInstallation"]:
+    def get_installation(
+        self, installation_id: int
+    ) -> Optional["FigmaInstallation"]:
         """
         Retrieve a single Figma installation by ID, excluding soft-deleted records.
 
@@ -184,9 +186,7 @@ class IFigmaRepository(ABC):
 
     @abstractmethod
     def update_installation(
-        self,
-        installation_id: int,
-        **kwargs
+        self, installation_id: int, **kwargs
     ) -> "FigmaInstallation":
         """
         Update fields on an existing Figma installation.
@@ -288,9 +288,7 @@ class IFigmaRepository(ABC):
 
     @abstractmethod
     def list_installations(
-        self,
-        user_id: Optional[int] = None,
-        team_id: Optional[int] = None
+        self, user_id: Optional[int] = None, team_id: Optional[int] = None
     ) -> List["FigmaInstallation"]:
         """
         List Figma installations with optional filtering by user or team.
@@ -349,7 +347,7 @@ class IFigmaRepository(ABC):
         installation_id: int,
         user_id: int,
         granted_by: int,
-        access_level: str = "viewer"
+        access_level: str = "viewer",
     ) -> "FigmaInstallationAccess":
         """
         Grant a user access to a Figma installation with specified access level.
@@ -449,7 +447,9 @@ class IFigmaRepository(ABC):
         pass
 
     @abstractmethod
-    def list_access(self, installation_id: int) -> List["FigmaInstallationAccess"]:
+    def list_access(
+        self, installation_id: int
+    ) -> List["FigmaInstallationAccess"]:
         """
         List all users with active access to a Figma installation.
 
@@ -499,7 +499,7 @@ class IFigmaRepository(ABC):
         created_by: int,
         frame_title: Optional[str] = None,
         description: Optional[str] = None,
-        tech_spec_id: Optional[int] = None
+        tech_spec_id: Optional[int] = None,
     ) -> "FigmaAttachment":
         """
         Create or update a Figma frame attachment to a project with idempotent behavior.
@@ -577,7 +577,9 @@ class IFigmaRepository(ABC):
         pass
 
     @abstractmethod
-    def get_attachment(self, attachment_id: int) -> Optional["FigmaAttachment"]:
+    def get_attachment(
+        self, attachment_id: int
+    ) -> Optional["FigmaAttachment"]:
         """
         Retrieve a single Figma attachment by ID, excluding soft-deleted records.
 
@@ -612,9 +614,7 @@ class IFigmaRepository(ABC):
 
     @abstractmethod
     def list_attachments(
-        self,
-        project_id: int,
-        tech_spec_id: Optional[int] = None
+        self, project_id: int, tech_spec_id: Optional[int] = None
     ) -> List["FigmaAttachment"]:
         """
         List Figma attachments for a project, optionally filtered by tech spec.

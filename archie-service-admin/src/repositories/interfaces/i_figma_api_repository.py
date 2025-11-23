@@ -97,7 +97,9 @@ class IFigmaAPIRepository(ABC):
         pass
 
     @abstractmethod
-    def validate_frame_access(self, pat: str, frame_url: str) -> Dict[str, Any]:
+    def validate_frame_access(
+        self, pat: str, frame_url: str
+    ) -> Dict[str, Any]:
         """
         Validate PAT has access to frame and retrieve frame metadata.
 
@@ -179,7 +181,9 @@ class IFigmaAPIRepository(ABC):
         pass
 
     @abstractmethod
-    def get_frame_metadata(self, pat: str, frame_url: str) -> Optional[Dict[str, Any]]:
+    def get_frame_metadata(
+        self, pat: str, frame_url: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Retrieve comprehensive frame metadata from Figma API.
 

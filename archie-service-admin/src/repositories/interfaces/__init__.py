@@ -48,8 +48,8 @@ from .i_figma_api_repository import IFigmaAPIRepository
 from .i_config_repository import IConfigRepository
 
 __all__ = [
-    'IFigmaRepository',
-    'ISecretRepository',
-    'IFigmaAPIRepository',
-    'IConfigRepository',
+    "IFigmaRepository",
+    "ISecretRepository",
+    "IFigmaAPIRepository",
+    "IConfigRepository",
 ]

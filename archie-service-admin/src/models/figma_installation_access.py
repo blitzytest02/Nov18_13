@@ -19,8 +19,13 @@ Indexes: figma_installation_id, user_id, deleted_at for efficient access checks 
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, BigInteger, String, DateTime,
-    ForeignKey, UniqueConstraint, Index
+    Column,
+    BigInteger,
+    String,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -70,24 +75,24 @@ class FigmaInstallationAccess(Base):
     :ivar granted_by_user: Relationship to User model (admin who granted access)
     """
 
-    __tablename__ = 'figma_installation_access'
+    __tablename__ = "figma_installation_access"
 
     # Define table-level constraints and indexes
     __table_args__ = (
         # Unique constraint prevents duplicate active access grants
         # Including deleted_at allows maintaining history of revoked grants
         UniqueConstraint(
-            'figma_installation_id',
-            'user_id',
-            'deleted_at',
-            name='uq_figma_access_installation_user_deleted'
+            "figma_installation_id",
+            "user_id",
+            "deleted_at",
+            name="uq_figma_access_installation_user_deleted",
         ),
         # Index for efficient queries by installation when listing access grants
-        Index('idx_figma_access_installation', 'figma_installation_id'),
+        Index("idx_figma_access_installation", "figma_installation_id"),
         # Index for efficient queries by user when checking permissions
-        Index('idx_figma_access_user', 'user_id'),
+        Index("idx_figma_access_user", "user_id"),
         # Index for efficient filtering of soft-deleted records
-        Index('idx_figma_access_deleted', 'deleted_at'),
+        Index("idx_figma_access_deleted", "deleted_at"),
     )
 
     # Primary Key
@@ -96,38 +101,38 @@ class FigmaInstallationAccess(Base):
         primary_key=True,
         autoincrement=True,
         nullable=False,
-        comment='Unique identifier for the access grant record'
+        comment="Unique identifier for the access grant record",
     )
 
     # Foreign Keys
     figma_installation_id = Column(
         BigInteger,
-        ForeignKey('figma_installation.id', ondelete='CASCADE'),
+        ForeignKey("figma_installation.id", ondelete="CASCADE"),
         nullable=False,
-        comment='Reference to the Figma installation being shared'
+        comment="Reference to the Figma installation being shared",
     )
 
     user_id = Column(
         BigInteger,
-        ForeignKey('users.id', ondelete='CASCADE'),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        comment='User who has been granted access to the installation'
+        comment="User who has been granted access to the installation",
     )
 
     granted_by = Column(
         BigInteger,
-        ForeignKey('users.id', ondelete='SET NULL'),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,
-        comment='Admin user who granted this access'
+        comment="Admin user who granted this access",
     )
 
     # Data Fields
     access_level = Column(
         String(50),
         nullable=False,
-        default='viewer',
-        comment='Permission level: viewer (read-only), editor (attach frames), '
-                'or admin (full control)'
+        default="viewer",
+        comment="Permission level: viewer (read-only), editor (attach frames), "
+        "or admin (full control)",
     )
 
     # Timestamps
@@ -135,7 +140,7 @@ class FigmaInstallationAccess(Base):
         DateTime,
         nullable=False,
         default=datetime.utcnow,
-        comment='Timestamp when access was granted'
+        comment="Timestamp when access was granted",
     )
 
     updated_at = Column(
@@ -143,39 +148,39 @@ class FigmaInstallationAccess(Base):
         nullable=False,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        comment='Timestamp when access record was last modified'
+        comment="Timestamp when access record was last modified",
     )
 
     # Soft Delete Support
     deleted_at = Column(
         DateTime,
         nullable=True,
-        comment='Soft delete timestamp for access revocation, NULL indicates active access'
+        comment="Soft delete timestamp for access revocation, NULL indicates active access",
     )
 
     # Relationships
     installation = relationship(
-        'FigmaInstallation',
-        back_populates='access_records',
+        "FigmaInstallation",
+        back_populates="access_records",
         foreign_keys=[figma_installation_id],
-        lazy='joined',
-        doc='The Figma installation that is being shared'
+        lazy="joined",
+        doc="The Figma installation that is being shared",
     )
 
     user = relationship(
-        'User',
+        "User",
         foreign_keys=[user_id],
-        backref='figma_installation_access_grants',
-        lazy='joined',
-        doc='The user who has been granted access to the installation'
+        backref="figma_installation_access_grants",
+        lazy="joined",
+        doc="The user who has been granted access to the installation",
     )
 
     granted_by_user = relationship(
-        'User',
+        "User",
         foreign_keys=[granted_by],
-        backref='figma_access_grants_given',
-        lazy='joined',
-        doc='The admin user who granted this access'
+        backref="figma_access_grants_given",
+        lazy="joined",
+        doc="The admin user who granted this access",
     )
 
     def __repr__(self) -> str:
@@ -216,7 +221,7 @@ class FigmaInstallationAccess(Base):
         :return: True if access_level is 'admin', False otherwise
         :rtype: bool
         """
-        return self.access_level == 'admin'  # type: ignore[return-value]
+        return self.access_level == "admin"  # type: ignore[return-value]
 
     def is_editor_or_above(self) -> bool:
         """
@@ -229,7 +234,7 @@ class FigmaInstallationAccess(Base):
         :return: True if access_level is 'editor' or 'admin', False otherwise
         :rtype: bool
         """
-        return self.access_level in ('editor', 'admin')
+        return self.access_level in ("editor", "admin")
 
     def can_share(self) -> bool:
         """

@@ -110,13 +110,13 @@ class FakeConfigRepository(IConfigRepository):
         :rtype: Dict[str, Any]
         """
         return {
-            'FIGMA_INTEGRATION_ENABLED': True,
-            'GCP_PROJECT_ID': 'test-project-id',
-            'SECRET_MANAGER_RETRY_COUNT': 3,
-            'DEBUG_MODE': False,
-            'MAX_ATTACHMENT_SIZE': 1048576,  # 1 MB in bytes
-            'API_TIMEOUT_SECONDS': 30,
-            'ENABLE_LOGGING': True,
+            "FIGMA_INTEGRATION_ENABLED": True,
+            "GCP_PROJECT_ID": "test-project-id",
+            "SECRET_MANAGER_RETRY_COUNT": 3,
+            "DEBUG_MODE": False,
+            "MAX_ATTACHMENT_SIZE": 1048576,  # 1 MB in bytes
+            "API_TIMEOUT_SECONDS": 30,
+            "ENABLE_LOGGING": True,
         }
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -203,9 +203,9 @@ class FakeConfigRepository(IConfigRepository):
         # Handle string representations
         if isinstance(value, str):
             lower_value = value.lower()
-            if lower_value in ('true', '1', 'yes'):
+            if lower_value in ("true", "1", "yes"):
                 return True
-            elif lower_value in ('false', '0', 'no'):
+            elif lower_value in ("false", "0", "no"):
                 return False
 
         # Any other value is falsy
@@ -295,7 +295,7 @@ class FakeConfigRepository(IConfigRepository):
             creating, retrieving, updating, and deleting Figma PAT secrets with the
             naming pattern 'figma-secret-<installation_id>'.
         """
-        return self._config.get('GCP_PROJECT_ID', 'test-project-id')
+        return self._config.get("GCP_PROJECT_ID", "test-project-id")
 
     # Test Helper Methods
 
@@ -472,7 +472,7 @@ class FakeConfigRepository(IConfigRepository):
         """
         return self.get_bool(feature_name, default=False)
 
-    def copy(self) -> 'FakeConfigRepository':
+    def copy(self) -> "FakeConfigRepository":
         """
         Create a snapshot copy of the current configuration state.
 
