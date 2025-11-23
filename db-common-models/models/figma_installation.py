@@ -148,23 +148,42 @@ class FigmaInstallation(Base):
     )
     
     # Relationships
-    # NOTE: These relationships assume User and Team models exist with back_populates
-    # or use lazy loading to avoid circular import issues
+    # NOTE: These relationships use string references and viewonly=True
+    # to avoid requiring User, Team, etc. models to be defined in this package.
+    # When integrating with a full application, these can be configured with
+    # back_populates on both sides for bidirectional access.
     
-    user = relationship(
-        'User',
-        foreign_keys=[user_id],
-        back_populates='figma_installations',
+    # Commented out to avoid dependency on external models
+    # Uncomment and configure back_populates when integrating into full application
+    # user = relationship(
+    #     'User',
+    #     foreign_keys=[user_id],
+    #     viewonly=True,
+    #     doc='Owner of the Figma installation'
+    # )
+    # 
+    # team = relationship(
+    #     'Team',
+    #     foreign_keys=[team_id],
+    #     viewonly=True,
+    #     doc='Optional team associated with the installation'
+    # )
+    
+    # Relationships to other Figma models in this package
+    access_grants = relationship(
+        'FigmaInstallationAccess',
+        foreign_keys='FigmaInstallationAccess.figma_installation_id',
+        back_populates='installation',
         lazy='select',
-        doc='Owner of the Figma installation'
+        doc='Access grants for sharing this installation with other users'
     )
     
-    team = relationship(
-        'Team',
-        foreign_keys=[team_id],
-        back_populates='figma_installations',
+    attachments = relationship(
+        'FigmaAttachment',
+        foreign_keys='FigmaAttachment.figma_installation_id',
+        back_populates='installation',
         lazy='select',
-        doc='Optional team associated with the installation'
+        doc='Figma frame attachments using this installation'
     )
     
     # Indexes for query optimization
