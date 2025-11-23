@@ -168,33 +168,33 @@ class FigmaInstallationAccess(Base):
     #     viewonly=True,
     #     doc='User who granted this access'
     # )
-    
+
     # For standalone model compatibility, define placeholder properties
     # These will be overridden by actual relationships when integrated
     @property
     def user(self):
         """
         Placeholder for User relationship.
-        
+
         This property provides a hook for the User relationship that should
         be configured when integrating into the full application. In standalone
         usage, this returns None.
-        
+
         Returns:
             None in standalone mode, User object when relationship is configured.
         """
         # This will be overridden by SQLAlchemy relationship when User model is available
         return getattr(self, '_user', None)
-    
+
     @property
     def granter(self):
         """
         Placeholder for granter (User) relationship.
-        
+
         This property provides a hook for the granter relationship that should
         be configured when integrating into the full application. In standalone
         usage, this returns None.
-        
+
         Returns:
             None in standalone mode, User object when relationship is configured.
         """
@@ -205,11 +205,11 @@ class FigmaInstallationAccess(Base):
     def figma_installation(self):
         """
         Alias for installation relationship to match export specification.
-        
+
         This property provides access to the FigmaInstallation object using
         the name specified in the export interface while maintaining
         compatibility with the back_populates relationship name.
-        
+
         Returns:
             FigmaInstallation: The Figma installation being shared.
         """
