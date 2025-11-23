@@ -18,18 +18,9 @@ from datetime import datetime
 from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 
-# Import the shared declarative base from the models package
-# In a typical multi-model project, Base is defined in models/__init__.py or models/base.py
-try:
-    from . import Base
-except ImportError:
-    # Fallback: if Base is not available in package __init__, try base module
-    try:
-        from .base import Base
-    except ImportError:
-        # Last resort: create a local declarative base
-        from sqlalchemy.orm import declarative_base
-        Base = declarative_base()
+# Import the shared declarative base from the models.base module
+# Base is defined in base.py to avoid circular import issues
+from .base import Base
 
 
 class FigmaInstallation(Base):
@@ -212,7 +203,7 @@ class FigmaInstallation(Base):
         :return: True if status is 'expired', False otherwise
         :rtype: bool
         """
-        return self.status == 'expired'
+        return self.status == 'expired'  # type: ignore[return-value]
 
     def get_secret_name(self) -> str:
         """

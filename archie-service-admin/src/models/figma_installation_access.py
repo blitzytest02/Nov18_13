@@ -22,18 +22,9 @@ from typing import Optional
 from sqlalchemy import Column, BigInteger, String, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 
-# Import the shared declarative base from the models package
-# This follows the same pattern as FigmaInstallation for consistency
-try:
-    from . import Base
-except ImportError:
-    # Fallback: if Base is not available in package __init__, try base module
-    try:
-        from .base import Base
-    except ImportError:
-        # Last resort: create a local declarative base
-        from sqlalchemy.orm import declarative_base
-        Base = declarative_base()
+# Import the shared declarative base from the models.base module
+# Base is defined in base.py to avoid circular import issues
+from .base import Base
 
 
 class FigmaInstallationAccess(Base):
@@ -222,7 +213,7 @@ class FigmaInstallationAccess(Base):
         :return: True if access_level is 'admin', False otherwise
         :rtype: bool
         """
-        return self.access_level == 'admin'
+        return self.access_level == 'admin'  # type: ignore[return-value]
 
     def is_editor_or_above(self) -> bool:
         """
