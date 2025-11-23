@@ -707,19 +707,21 @@ class FakeAdminClient:
 
     def list_figma_attachments(
         self,
-        project_id: int,
-        tech_spec_id: Optional[int],
+        query_params: Dict[str, Any],
         user_context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         List Figma attachments for a project (mimics AdminClient method).
 
-        :param project_id: Project ID
-        :param tech_spec_id: Optional tech spec ID
+        :param query_params: Query parameters containing project_id (required)
+            and tech_spec_id (optional)
         :param user_context: Authenticated user context
         :return: List of attachments from configured response
         :raises AdminServiceError: If admin service returns error response
         """
+        project_id = query_params.get('project_id')
+        tech_spec_id = query_params.get('tech_spec_id')
+
         path = f'/v1/figma/attachments?project_id={project_id}'
         if tech_spec_id is not None:
             path += f'&tech_spec_id={tech_spec_id}'
