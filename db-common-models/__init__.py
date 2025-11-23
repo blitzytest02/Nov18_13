@@ -18,7 +18,7 @@ Models
 ------
 FigmaInstallation : class
     Represents a Figma integration connection storing PAT metadata.
-    
+
     Attributes:
         id (int): Primary key, auto-generated installation identifier
         user_id (int): Owner of the installation (foreign key to users table)
@@ -32,7 +32,7 @@ FigmaInstallation : class
 
 FigmaInstallationAccess : class
     Access control for sharing Figma installations between users.
-    
+
     Attributes:
         id (int): Primary key, auto-generated access record identifier
         figma_installation_id (int): Reference to shared installation
@@ -45,7 +45,7 @@ FigmaInstallationAccess : class
 
 FigmaAttachment : class
     Lightweight metadata for Figma design frames attached to projects.
-    
+
     Attributes:
         id (int): Primary key, auto-generated attachment identifier
         project_id (int): Project this frame is attached to (foreign key)
@@ -64,7 +64,7 @@ Usage
 Services can import models directly from the db_common_models package::
 
     from db_common_models import FigmaInstallation, FigmaInstallationAccess, FigmaAttachment
-    
+
     # Use models for database operations
     installation = FigmaInstallation(
         user_id=user_id,
