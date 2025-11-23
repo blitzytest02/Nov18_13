@@ -1,0 +1,166 @@
+# archie-service-admin - Python Package Dependencies
+# =================================================
+# This file declares all external library dependencies for the archie-service-admin service.
+# Includes critical google-cloud-secret-manager package for secure Figma Personal Access Token
+# storage in Google Secret Manager as part of the Figma integration feature.
+
+# ============================================================================
+# CRITICAL: Figma Integration Dependencies
+# ============================================================================
+# Google Cloud Secret Manager - Required for secure PAT storage
+# Stores Figma Personal Access Tokens with pattern: figma-secret-<installation_id>
+# Version 2.0.0+ required for latest security features and API compatibility
+google-cloud-secret-manager>=2.0.0
+
+# ============================================================================
+# Web Framework
+# ============================================================================
+# Flask - Lightweight WSGI web application framework
+# Used for all HTTP route handlers and request/response processing
+Flask>=2.0.0
+
+# Flask-CORS - Cross-Origin Resource Sharing support
+# Enables API consumption from web frontends on different domains
+Flask-CORS>=3.0.10
+
+# Werkzeug - WSGI utility library (Flask dependency)
+# Explicitly pinned for compatibility with Flask
+Werkzeug>=2.0.0
+
+# ============================================================================
+# Database & ORM
+# ============================================================================
+# SQLAlchemy - SQL toolkit and Object-Relational Mapping library
+# Used for all database models: FigmaInstallation, FigmaInstallationAccess, FigmaAttachment
+SQLAlchemy>=1.4.0
+
+# Alembic - Database migration tool for SQLAlchemy
+# Manages schema changes for new Figma tables
+alembic>=1.8.0
+
+# psycopg2-binary - PostgreSQL adapter for Python
+# Enables SQLAlchemy to connect to PostgreSQL database
+# Binary distribution includes C dependencies for easier installation
+psycopg2-binary>=2.9.0
+
+# ============================================================================
+# HTTP Client
+# ============================================================================
+# Requests - HTTP library for Python
+# Used by FigmaAPIRepository to validate PATs and access Figma API endpoints
+# Handles authentication headers and HTTP status codes
+requests>=2.28.0
+
+# ============================================================================
+# Configuration & Environment
+# ============================================================================
+# python-dotenv - Read key-value pairs from .env file
+# Loads environment variables for configuration: FIGMA_INTEGRATION_ENABLED, GCP_PROJECT_ID
+python-dotenv>=0.20.0
+
+# ============================================================================
+# Production Server
+# ============================================================================
+# Gunicorn - Python WSGI HTTP Server for UNIX
+# Production-grade server for running Flask applications
+gunicorn>=20.1.0
+
+# ============================================================================
+# Testing Framework
+# ============================================================================
+# pytest - Testing framework for Python
+# Used for all unit tests with fake repository implementations
+pytest>=7.0.0
+
+# pytest-cov - Coverage plugin for pytest
+# Generates code coverage reports (requires >80% coverage for new code)
+pytest-cov>=3.0.0
+
+# pytest-mock - Thin-wrapper around mock package for pytest
+# Provides mocking capabilities for test isolation
+pytest-mock>=3.10.0
+
+# ============================================================================
+# Code Quality & Type Checking
+# ============================================================================
+# flake8 - Python linting tool for style guide enforcement
+# Ensures code follows PEP 8 standards
+flake8>=5.0.0
+
+# pylint - Python static code analysis tool
+# Provides additional code quality checks beyond flake8
+pylint>=2.15.0
+
+# mypy - Static type checker for Python
+# Validates type hints throughout the codebase
+mypy>=0.990
+
+# black - Uncompromising Python code formatter
+# Automatically formats code for consistent style
+black>=22.10.0
+
+# ============================================================================
+# Utilities
+# ============================================================================
+# python-dateutil - Extensions to the standard datetime module
+# Provides robust date/time parsing and timezone handling
+python-dateutil>=2.8.0
+
+# pytz - World timezone definitions for Python
+# Handles timezone-aware datetime operations
+pytz>=2022.1
+
+# ============================================================================
+# Logging & Monitoring
+# ============================================================================
+# structlog - Structured logging for Python
+# Provides structured logging with context for better observability
+structlog>=22.1.0
+
+# ============================================================================
+# Security
+# ============================================================================
+# cryptography - Cryptographic recipes and primitives
+# Dependency of google-cloud-secret-manager for secure operations
+cryptography>=38.0.0
+
+# ============================================================================
+# Google Cloud Platform
+# ============================================================================
+# google-auth - Google authentication library
+# Handles Application Default Credentials (ADC) for Secret Manager
+google-auth>=2.14.0
+
+# google-api-core - Core library for making API requests to Google Cloud
+# Foundation for google-cloud-secret-manager operations
+google-api-core>=2.10.0
+
+# ============================================================================
+# Additional Dependencies
+# ============================================================================
+# Click - Command-line interface creation kit
+# Used by Flask CLI and Alembic for command-line tools
+click>=8.0.0
+
+# Jinja2 - Template engine
+# Flask dependency for rendering templates if needed
+Jinja2>=3.0.0
+
+# MarkupSafe - Safe string handling for XML/HTML
+# Jinja2 dependency
+MarkupSafe>=2.0.0
+
+# itsdangerous - Various helpers to pass trusted data to untrusted environments
+# Flask dependency for secure session handling
+itsdangerous>=2.0.0
+
+# ============================================================================
+# Development Dependencies (Optional - install with pip install -e .)
+# ============================================================================
+# ipython - Enhanced interactive Python shell
+# Useful for development debugging and exploration
+# ipython>=8.0.0
+
+# ipdb - IPython-enabled pdb debugger
+# Advanced debugging capabilities with IPython integration
+# ipdb>=0.13.0
