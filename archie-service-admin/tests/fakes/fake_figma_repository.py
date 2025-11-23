@@ -64,8 +64,25 @@ Transaction Simulation:
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from copy import deepcopy
+from types import SimpleNamespace
 
 from src.repositories.interfaces.i_figma_repository import IFigmaRepository
+
+
+def dict_to_obj(d: Dict[str, Any]) -> Any:
+    """
+    Convert dictionary to object with attribute access.
+    
+    This helper function wraps dictionaries in SimpleNamespace to enable
+    dot notation access (obj.field) matching the behavior of SQLAlchemy
+    model objects returned by the real repository implementation.
+    
+    :param d: Dictionary to convert
+    :return: SimpleNamespace object with dictionary keys as attributes
+    """
+    if d is None:
+        return None
+    return SimpleNamespace(**d)
 
 
 class FakeFigmaRepository(IFigmaRepository):
@@ -153,7 +170,7 @@ class FakeFigmaRepository(IFigmaRepository):
         }
 
         self._installations[installation_id] = installation
-        return deepcopy(installation)
+        return dict_to_obj(deepcopy(installation))
 
     def get_installation(self, installation_id: int) -> Optional[Dict[str, Any]]:  # type: ignore[override]
         """
@@ -170,7 +187,7 @@ class FakeFigmaRepository(IFigmaRepository):
         if installation is None or installation["deleted_at"] is not None:
             return None
 
-        return deepcopy(installation)
+        return dict_to_obj(deepcopy(installation))
 
     def update_installation(  # type: ignore[override]
         self, installation_id: int, **kwargs
@@ -208,7 +225,7 @@ class FakeFigmaRepository(IFigmaRepository):
         # Always refresh updated_at timestamp
         installation["updated_at"] = datetime.utcnow()
 
-        return deepcopy(installation)
+        return dict_to_obj(deepcopy(installation))
 
     def soft_delete_installation(self, installation_id: int) -> bool:
         """
@@ -229,6 +246,22 @@ class FakeFigmaRepository(IFigmaRepository):
 
         installation["deleted_at"] = datetime.utcnow()
         return True
+
+    def delete_installation(self, installation_id: int) -> bool:
+        """
+        Permanently delete installation from memory (for rollback simulation).
+
+        This method is primarily used to simulate transaction rollback in tests.
+        Unlike soft_delete_installation which sets deleted_at, this method
+        physically removes the record from internal storage.
+
+        :param installation_id: ID of installation to permanently delete
+        :return: True if deleted, False if not found
+        """
+        if installation_id in self._installations:
+            del self._installations[installation_id]
+            return True
+        return False
 
     def list_installations(  # type: ignore[override]
         self, user_id: Optional[int] = None, team_id: Optional[int] = None
@@ -258,16 +291,16 @@ class FakeFigmaRepository(IFigmaRepository):
                     installation["user_id"] == user_id
                     or installation["team_id"] == team_id
                 ):
-                    results.append(deepcopy(installation))
+                    results.append(dict_to_obj(deepcopy(installation)))
             elif user_id is not None:
                 if installation["user_id"] == user_id:
-                    results.append(deepcopy(installation))
+                    results.append(dict_to_obj(deepcopy(installation)))
             elif team_id is not None:
                 if installation["team_id"] == team_id:
-                    results.append(deepcopy(installation))
+                    results.append(dict_to_obj(deepcopy(installation)))
             else:
                 # No filters - return all active installations
-                results.append(deepcopy(installation))
+                results.append(dict_to_obj(deepcopy(installation)))
 
         return results
 
@@ -324,7 +357,7 @@ class FakeFigmaRepository(IFigmaRepository):
         }
 
         self._access_records[access_id] = access_record
-        return deepcopy(access_record)
+        return dict_to_obj(deepcopy(access_record))
 
     def revoke_access(self, installation_id: int, user_id: int) -> bool:
         """
@@ -369,7 +402,7 @@ class FakeFigmaRepository(IFigmaRepository):
                 access["figma_installation_id"] == installation_id
                 and access["deleted_at"] is None
             ):
-                results.append(deepcopy(access))
+                results.append(dict_to_obj(deepcopy(access)))
 
         return results
 
@@ -427,7 +460,7 @@ class FakeFigmaRepository(IFigmaRepository):
             existing_attachment["tech_spec_id"] = tech_spec_id
             # Note: created_by is NOT updated - preserves original creator
             existing_attachment["updated_at"] = datetime.utcnow()
-            return deepcopy(existing_attachment)
+            return dict_to_obj(deepcopy(existing_attachment))
         else:
             # Create new attachment
             attachment_id = self._next_attachment_id
@@ -449,7 +482,7 @@ class FakeFigmaRepository(IFigmaRepository):
             }
 
             self._attachments[attachment_id] = attachment
-            return deepcopy(attachment)
+            return dict_to_obj(deepcopy(attachment))
 
     def get_attachment(self, attachment_id: int) -> Optional[Dict[str, Any]]:  # type: ignore[override]
         """
@@ -466,7 +499,7 @@ class FakeFigmaRepository(IFigmaRepository):
         if attachment is None or attachment["deleted_at"] is not None:
             return None
 
-        return deepcopy(attachment)
+        return dict_to_obj(deepcopy(attachment))
 
     def list_attachments(  # type: ignore[override]
         self, project_id: int, tech_spec_id: Optional[int] = None
@@ -500,7 +533,7 @@ class FakeFigmaRepository(IFigmaRepository):
             ):
                 continue
 
-            results.append(deepcopy(attachment))
+            results.append(dict_to_obj(deepcopy(attachment)))
 
         return results
 
