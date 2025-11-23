@@ -263,6 +263,7 @@ class FigmaService:
 
         # Why transaction here: We need to rollback the DB changes if Secret Manager fails
         # This ensures we never have an installation record without a corresponding secret
+        installation = None
         try:
             # Step 1: Create database record within transaction context
             # The installation_id is needed to construct the secret name
@@ -278,7 +279,7 @@ class FigmaService:
             logger.debug(f"Storing PAT in Secret Manager with name: {secret_name}")
 
             # Step 3: Store PAT in Secret Manager with retry logic
-            # If this fails after retries, the exception will trigger transaction rollback
+            # If this fails after retries, we need to rollback the database changes
             try:
                 self.secret_repo.create_secret(
                     secret_name=secret_name,
@@ -289,14 +290,17 @@ class FigmaService:
                     f"Successfully created installation {installation.id} with secret {secret_name}"
                 )
             except Exception as secret_error:
-                # Secret Manager operation failed - log detailed error
-                # The exception will propagate and trigger transaction rollback
+                # Secret Manager operation failed - rollback database changes
                 logger.error(
                     f"Failed to store PAT in Secret Manager for installation {installation.id}: {secret_error}",
                     exc_info=True,
                 )
-                # Re-raise to trigger transaction rollback in calling code
-                # In production, the route handler or repository should manage the transaction
+                # Rollback: Delete the installation that was just created
+                # In production, this would be handled by database transaction rollback
+                # For testing with fakes, we explicitly delete the record
+                if hasattr(self.figma_repo, 'delete_installation'):
+                    self.figma_repo.delete_installation(installation.id)
+                # Re-raise the exception to signal failure to caller
                 raise
 
             # Step 4: Return installation metadata WITHOUT the PAT
