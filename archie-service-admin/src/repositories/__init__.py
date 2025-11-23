@@ -8,14 +8,14 @@ and application configuration.
 Package Structure:
     - interfaces/: Abstract base classes defining repository contracts
     - implementations: Concrete repository classes (e.g., FigmaRepository, SecretRepository)
-    
+
 Design Pattern:
     This package follows the Repository Pattern with Dependency Injection:
     - Interfaces define contracts for external system interactions
     - Concrete implementations handle actual external system communication
     - Services depend on interface abstractions, not concrete implementations
     - Test code injects fake implementations for unit testing
-    
+
 Purpose:
     - Separate business logic from infrastructure concerns
     - Enable testability through interface-based dependency injection

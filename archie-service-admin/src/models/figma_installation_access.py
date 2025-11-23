@@ -17,9 +17,11 @@ Indexes: figma_installation_id, user_id, deleted_at for efficient access checks 
 """
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Column, BigInteger, String, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import (
+    Column, BigInteger, String, DateTime,
+    ForeignKey, UniqueConstraint, Index
+)
 from sqlalchemy.orm import relationship
 
 # Import the shared declarative base from the models.base module
@@ -124,7 +126,8 @@ class FigmaInstallationAccess(Base):
         String(50),
         nullable=False,
         default='viewer',
-        comment='Permission level: viewer (read-only), editor (attach frames), or admin (full control)'
+        comment='Permission level: viewer (read-only), editor (attach frames), '
+                'or admin (full control)'
     )
 
     # Timestamps

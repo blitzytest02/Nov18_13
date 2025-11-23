@@ -16,7 +16,7 @@ Available Interfaces:
 
 Usage Pattern:
     Services should depend on these interfaces, not concrete implementations:
-    
+
     class FigmaService:
         def __init__(
             self,
@@ -30,7 +30,7 @@ Usage Pattern:
 
 Testing Pattern:
     Tests inject fake implementations:
-    
+
     def test_service():
         fake_secret_repo = FakeSecretRepository()
         fake_figma_api = FakeFigmaAPIRepository()

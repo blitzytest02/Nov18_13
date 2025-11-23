@@ -159,15 +159,19 @@ class IFigmaAPIRepository(ABC):
             - 404 Not Found: File or node does not exist
                 Returns: {"valid": False, "title": "", "message": "Frame not found"}
             - 429 Too Many Requests: Rate limit exceeded
-                Returns: {"valid": False, "title": "", "message": "Rate limit exceeded, try again later"}
+                Returns: {"valid": False, "title": "",
+                         "message": "Rate limit exceeded, try again later"}
             - Network errors: Timeout or connection failure
-                Returns: {"valid": False, "title": "", "message": "Network error connecting to Figma API"}
+                Returns: {"valid": False, "title": "",
+                         "message": "Network error connecting to Figma API"}
 
         Implementation Notes:
             - Parse frame_url to extract file_key and node_id
-            - Use Figma API endpoint: GET https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}
+            - Use Figma API endpoint:
+              GET https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}
             - Include header: Authorization: Bearer {pat}
-            - Extract frame title from response: response['nodes'][node_id]['document']['name']
+            - Extract frame title from response:
+              response['nodes'][node_id]['document']['name']
             - Implement timeout (recommended: 15 seconds for frame retrieval)
             - Consider retry logic for transient errors (3 attempts recommended)
             - Validate URL format before making API request
@@ -232,7 +236,8 @@ class IFigmaAPIRepository(ABC):
 
         Implementation Notes:
             - Parse frame_url to extract file_key and node_id
-            - Use Figma API endpoint: GET https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}
+            - Use Figma API endpoint:
+              GET https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}
             - Include header: Authorization: Bearer {pat}
             - Extract node data from response: response['nodes'][node_id]['document']
             - Return None for any error condition (don't raise exceptions)

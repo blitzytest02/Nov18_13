@@ -16,13 +16,12 @@ Indexes: project_id, tech_spec_id, figma_installation_id, deleted_at for efficie
 """
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import (
+    Column, BigInteger, String, Text, DateTime,
+    ForeignKey, UniqueConstraint, Index
+)
 from sqlalchemy.orm import relationship
-
-# Import FigmaInstallation for relationship definition
-from .figma_installation import FigmaInstallation
 
 # Import the shared declarative base from the models.base module
 # Base is defined in base.py to avoid circular import issues
@@ -53,7 +52,8 @@ class FigmaAttachment(Base):
     :type project_id: int
     :ivar tech_spec_id: Optional tech spec association, references tech_specs.id
     :type tech_spec_id: Optional[int]
-    :ivar figma_installation_id: Figma installation providing PAT, references figma_installation.id (required)
+    :ivar figma_installation_id: Figma installation providing PAT,
+        references figma_installation.id (required)
     :type figma_installation_id: int
     :ivar frame_url: Full URL to the Figma frame (required)
     :type frame_url: str

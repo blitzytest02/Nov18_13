@@ -47,7 +47,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 import requests
-from requests.exceptions import HTTPError, RequestException, Timeout
+from requests.exceptions import RequestException, Timeout
 
 from .interfaces.i_figma_api_repository import IFigmaAPIRepository
 
@@ -357,7 +357,10 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                                 "message": ""
                             }
                         else:
-                            logger.warning(f"Unexpected response structure from Figma API: missing document.name")
+                            logger.warning(
+                                "Unexpected response structure from Figma API: "
+                                "missing document.name"
+                            )
                             return {
                                 "valid": False,
                                 "title": "",
@@ -522,7 +525,8 @@ class FigmaAPIRepository(IFigmaAPIRepository):
             >>> if metadata:
             ...     print(f"Frame name: {metadata['name']}")
             ...     print(f"Frame type: {metadata['type']}")
-            ...     print(f"Dimensions: {metadata['absoluteBoundingBox']['width']}x{metadata['absoluteBoundingBox']['height']}")
+            ...     bbox = metadata['absoluteBoundingBox']
+            ...     print(f"Dimensions: {bbox['width']}x{bbox['height']}")
             ... else:
             ...     print("Could not retrieve frame metadata")
         """
@@ -580,10 +584,16 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
                         # Return the full document metadata
                         if 'document' in node_data:
-                            logger.info(f"Frame metadata retrieved successfully for node {node_id}")
+                            logger.info(
+                                f"Frame metadata retrieved successfully "
+                                f"for node {node_id}"
+                            )
                             return node_data['document']
                         else:
-                            logger.warning(f"Unexpected response structure: missing document key")
+                            logger.warning(
+                                "Unexpected response structure: "
+                                "missing document key"
+                            )
                             return None
                     else:
                         logger.warning(f"Node {node_id} not found in response")
@@ -615,7 +625,10 @@ class FigmaAPIRepository(IFigmaAPIRepository):
                 return None
 
         except Timeout:
-            logger.error(f"Frame metadata retrieval timeout after {FRAME_OPERATION_TIMEOUT} seconds")
+            logger.error(
+                f"Frame metadata retrieval timeout after "
+                f"{FRAME_OPERATION_TIMEOUT} seconds"
+            )
             return None
 
         except RequestException as e:
@@ -679,7 +692,10 @@ class FigmaAPIRepository(IFigmaAPIRepository):
 
             # Validate that we have both required components
             if not file_key or not node_id:
-                logger.debug(f"URL missing required components: file_key={file_key}, node_id={node_id}")
+                logger.debug(
+                    f"URL missing required components: "
+                    f"file_key={file_key}, node_id={node_id}"
+                )
                 return None
 
             return {
