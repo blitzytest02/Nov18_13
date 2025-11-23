@@ -15,7 +15,6 @@ All fixtures use function scope by default to ensure test isolation, with
 comprehensive docstrings explaining purpose and usage patterns.
 """
 
-from datetime import datetime
 from typing import Any, Callable, Dict, Generator, List, Optional
 from unittest.mock import patch
 
@@ -580,7 +579,7 @@ def authenticated_user_with_project_access() -> Dict[str, Any]:
         'username': 'project_user',
         'email': 'projectuser@example.com',
         'role': 'USER',
-        'auth_token': 'project_access_token_xyz',
+        'token': 'project_access_token_xyz',
         'has_project_access': True,
         'created_at': '2024-01-01T00:00:00Z'
     }
@@ -621,7 +620,7 @@ def authenticated_user_no_project_access() -> Dict[str, Any]:
         'username': 'no_project_user',
         'email': 'noprojectuser@example.com',
         'role': 'USER',
-        'auth_token': 'no_project_token_abc',
+        'token': 'no_project_token_abc',
         'has_project_access': False,
         'created_at': '2024-01-01T00:00:00Z'
     }
