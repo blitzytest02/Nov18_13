@@ -15,7 +15,7 @@ The module follows SQLAlchemy best practices:
 Usage in Production:
     ```python
     from database import get_db_session
-    
+
     # Get session for database operations
     session = get_db_session()
     try:
@@ -32,7 +32,7 @@ Usage in Production:
 Usage with Context Manager:
     ```python
     from database import get_db_session
-    
+
     with get_db_session() as session:
         # Session automatically committed on exit or rolled back on exception
         result = session.query(Model).all()
@@ -67,32 +67,32 @@ _engine = None
 def init_db(database_url: Optional[str] = None) -> None:
     """
     Initialize database engine and session factory.
-    
+
     This function should be called once during application startup to configure
     the database connection. It creates the SQLAlchemy engine and session factory
     that will be used throughout the application lifecycle.
-    
+
     :param database_url: Database connection URL (optional, defaults to DATABASE_URL env var)
     :type database_url: Optional[str]
-    
+
     :raises ValueError: If database_url is not provided and DATABASE_URL env var not set
     :raises Exception: If database connection cannot be established
     """
     global _engine, _SessionLocal
-    
+
     if _engine is not None:
         # Already initialized
         return
-    
+
     # Get database URL from parameter or environment variable
     db_url = database_url or os.getenv('DATABASE_URL')
-    
+
     if not db_url:
         raise ValueError(
             "Database URL must be provided via database_url parameter or "
             "DATABASE_URL environment variable"
         )
-    
+
     # Create engine with appropriate settings
     # For testing: Use NullPool to avoid connection pooling issues
     # For production: Use default pooling (typically 5 connections)
@@ -106,7 +106,7 @@ def init_db(database_url: Optional[str] = None) -> None:
             pool_pre_ping=True,  # Verify connections before use
             pool_recycle=3600    # Recycle connections after 1 hour
         )
-    
+
     # Create session factory
     _SessionLocal = sessionmaker(
         autocommit=False,
@@ -118,16 +118,16 @@ def init_db(database_url: Optional[str] = None) -> None:
 def get_db_session() -> Session:
     """
     Get a new database session.
-    
+
     Creates and returns a new SQLAlchemy Session instance for database operations.
     The caller is responsible for closing the session when done. Consider using
     the context manager pattern (get_db_session_ctx) for automatic cleanup.
-    
+
     :return: SQLAlchemy Session instance
     :rtype: Session
-    
+
     :raises RuntimeError: If database has not been initialized via init_db()
-    
+
     Example:
         >>> session = get_db_session()
         >>> try:
@@ -139,18 +139,16 @@ def get_db_session() -> Session:
         >>> finally:
         >>>     session.close()
     """
-    global _SessionLocal
-    
     if _SessionLocal is None:
         # Try to initialize with default database URL
         init_db()
-    
+
     if _SessionLocal is None:
         raise RuntimeError(
             "Database session factory not initialized. "
             "Call init_db() first or set DATABASE_URL environment variable."
         )
-    
+
     return _SessionLocal()
 
 
@@ -158,18 +156,18 @@ def get_db_session() -> Session:
 def get_db_session_ctx() -> Generator[Session, None, None]:
     """
     Context manager for database session with automatic cleanup.
-    
+
     Provides a database session that automatically commits on success and
     rolls back on exception. The session is closed automatically when the
     context exits.
-    
+
     :return: SQLAlchemy Session instance
     :rtype: Generator[Session, None, None]
-    
+
     :yields: Session: SQLAlchemy Session instance
-    
+
     :raises RuntimeError: If database has not been initialized via init_db()
-    
+
     Example:
         >>> with get_db_session_ctx() as session:
         >>>     result = session.query(Model).all()
@@ -190,14 +188,14 @@ def get_db_session_ctx() -> Generator[Session, None, None]:
 def close_db() -> None:
     """
     Close database engine and dispose of connection pool.
-    
+
     This function should be called during application shutdown to properly
     close all database connections and dispose of the connection pool.
     After calling this function, init_db() must be called again before
     using get_db_session().
     """
     global _engine, _SessionLocal
-    
+
     if _engine is not None:
         _engine.dispose()
         _engine = None
