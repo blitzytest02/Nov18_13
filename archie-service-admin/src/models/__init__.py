@@ -7,19 +7,22 @@ resolution and metadata management.
 
 Models:
     FigmaInstallation: Represents a Figma integration connection (PAT metadata)
+    FigmaInstallationAccess: Role-based access control for sharing Figma installations
     FigmaAttachment: Lightweight references to Figma frames attached to projects
 
 Usage:
-    from models import FigmaInstallation, FigmaAttachment, Base
+    from models import FigmaInstallation, FigmaInstallationAccess, FigmaAttachment, Base
 """
 
 # Import Base first from figma_installation to ensure it's available for all models
 from .figma_installation import Base, FigmaInstallation
+from .figma_installation_access import FigmaInstallationAccess
 from .figma_attachment import FigmaAttachment
 
 # Export all models and Base for external use
 __all__ = [
     'Base',
     'FigmaInstallation',
+    'FigmaInstallationAccess',
     'FigmaAttachment',
 ]
