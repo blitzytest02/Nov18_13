@@ -133,6 +133,7 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         # Frame response configuration
         self.frame_responses: Dict[str, Dict[str, Any]] = {}
         self.frame_metadata: Dict[str, Dict[str, Any]] = {}
+        self.default_frame_response: Optional[Dict[str, Any]] = None
 
         # Error simulation flags
         self.raise_on_validate_pat: bool = False
@@ -279,6 +280,10 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         if frame_url in self.frame_responses:
             # Use deepcopy to prevent test code from modifying internal state
             return deepcopy(self.frame_responses[frame_url])
+
+        # Return default frame response if configured
+        if self.default_frame_response is not None:
+            return deepcopy(self.default_frame_response)
 
         # Default response: successful validation with mock title
         return {"valid": True, "title": "Mock Frame Title", "message": ""}
@@ -486,6 +491,32 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
             "message": message,
         }
 
+    def set_frame_validation_result(self, result: Dict[str, Any]) -> None:
+        """
+        Configure default frame validation response for ALL frame URLs.
+
+        This helper method sets a default response that will be returned for
+        any frame URL that doesn't have a specific response configured. This is
+        useful for tests that don't care about specific URLs and just want to
+        control the validation outcome.
+
+        :param result: Dictionary with keys 'valid', 'title', 'message'
+        :type result: Dict[str, Any]
+
+        Example Usage:
+            >>> fake = FakeFigmaAPIRepository()
+            >>> fake.set_frame_validation_result({
+            ...     'valid': True,
+            ...     'title': 'Test Frame',
+            ...     'message': ''
+            ... })
+            >>> # Now any frame URL will return this response
+            >>> result = fake.validate_frame_access("pat", "any_url")
+            >>> assert result['valid'] is True
+            >>> assert result['title'] == 'Test Frame'
+        """
+        self.default_frame_response = deepcopy(result)
+
     def configure_default_behavior(self, all_valid: bool = True) -> None:
         """
         Configure default behavior for unconfigured PATs.
@@ -570,6 +601,7 @@ class FakeFigmaAPIRepository(IFigmaAPIRepository):
         # Clear frame configuration
         self.frame_responses.clear()
         self.frame_metadata.clear()
+        self.default_frame_response = None
 
         # Clear error simulation flags
         self.raise_on_validate_pat = False
