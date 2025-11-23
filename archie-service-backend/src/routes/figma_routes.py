@@ -495,7 +495,7 @@ def update_pat(installation_id: int) -> Tuple[Any, int]:
         admin_client = get_admin_client()
         result = admin_client.update_figma_pat(
             installation_id,
-            data,
+            data['pat'],
             user_context
         )
 
@@ -872,6 +872,47 @@ def validate_frame() -> Tuple[Any, int]:
                     "message": "Missing required fields: frame_url, installation_id"
                 }
             }), 400
+        
+        # Validate frame_url format
+        frame_url = data.get('frame_url')
+        if not isinstance(frame_url, str):
+            logger.warning("Frame URL must be a string, got: %s", type(frame_url))
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "frame_url must be a string"
+                }
+            }), 400
+        
+        # Basic URL validation - check if it looks like a Figma URL
+        if not frame_url.startswith(('http://', 'https://')):
+            logger.warning("Invalid frame URL format (missing protocol): %s", frame_url)
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "frame_url must be a valid HTTP/HTTPS URL"
+                }
+            }), 400
+        
+        if 'figma.com' not in frame_url:
+            logger.warning("Invalid frame URL format (not a Figma URL): %s", frame_url)
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "frame_url must be a valid Figma URL"
+                }
+            }), 400
+        
+        # Validate installation_id is an integer
+        installation_id = data.get('installation_id')
+        if not isinstance(installation_id, int):
+            logger.warning("Installation ID must be an integer, got: %s", type(installation_id))
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "installation_id must be an integer"
+                }
+            }), 400
 
         logger.info(
             "Validating Figma frame URL for user_id=%s, installation_id=%s",
@@ -986,8 +1027,37 @@ def create_attachments() -> Tuple[Any, int]:
                     "message": f"Missing required fields: {', '.join(missing_fields)}"
                 }
             }), 400
-
+        
+        # Validate data types
         project_id = data.get('project_id')
+        if not isinstance(project_id, int):
+            logger.warning("project_id must be an integer, got: %s", type(project_id))
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "project_id must be an integer"
+                }
+            }), 400
+        
+        installation_id = data.get('installation_id')
+        if not isinstance(installation_id, int):
+            logger.warning("installation_id must be an integer, got: %s", type(installation_id))
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "installation_id must be an integer"
+                }
+            }), 400
+        
+        frames = data.get('frames')
+        if not isinstance(frames, list):
+            logger.warning("frames must be a list, got: %s", type(frames))
+            return jsonify({
+                "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "frames must be a list"
+                }
+            }), 400
 
         # Verify user has access to the project
         # Note: Actual authorization is delegated to admin service which
@@ -1136,7 +1206,7 @@ def list_attachments() -> Tuple[Any, int]:
 
         # Forward request to admin service
         admin_client = get_admin_client()
-        result = admin_client.list_figma_attachments(query_params, user_context)
+        result = admin_client.list_figma_attachments(project_id, tech_spec_id, user_context)
 
         logger.info(
             "Successfully retrieved %s Figma attachments for project_id=%s",
@@ -1221,10 +1291,27 @@ def get_attachment(attachment_id: int) -> Tuple[Any, int]:
             user_context['user_id']
         )
 
-        # Forward request to admin service
-        # Admin service will verify user has access to the associated project
+        # First fetch the attachment to get the project_id for authorization check
         admin_client = get_admin_client()
         result = admin_client.get_figma_attachment(attachment_id, user_context)
+        
+        # Extract project_id from the attachment result
+        project_id = result.get('project_id')
+        if project_id:
+            # Verify user has access to the project
+            if not verify_project_access(user_context, project_id):
+                logger.warning(
+                    "User user_id=%s lacks access to project_id=%s for attachment_id=%s",
+                    user_context['user_id'],
+                    project_id,
+                    attachment_id
+                )
+                return jsonify({
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have access to this project"
+                    }
+                }), 403
 
         logger.info(
             "Successfully retrieved Figma attachment id=%s",
@@ -1299,9 +1386,29 @@ def delete_attachment(attachment_id: int) -> Tuple[Any, int]:
             user_context['user_id']
         )
 
-        # Forward request to admin service
-        # Admin service will verify user has permission to delete
+        # First fetch the attachment to get the project_id for authorization check
         admin_client = get_admin_client()
+        attachment_result = admin_client.get_figma_attachment(attachment_id, user_context)
+        
+        # Extract project_id from the attachment result
+        project_id = attachment_result.get('project_id')
+        if project_id:
+            # Verify user has access to the project
+            if not verify_project_access(user_context, project_id):
+                logger.warning(
+                    "User user_id=%s lacks access to project_id=%s for attachment_id=%s",
+                    user_context['user_id'],
+                    project_id,
+                    attachment_id
+                )
+                return jsonify({
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "You do not have access to this project"
+                    }
+                }), 403
+        
+        # Proceed with deletion if authorization passed
         admin_client.delete_figma_attachment(attachment_id, user_context)
 
         logger.info(
