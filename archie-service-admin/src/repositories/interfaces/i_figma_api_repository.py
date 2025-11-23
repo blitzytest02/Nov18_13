@@ -175,7 +175,7 @@ class IFigmaAPIRepository(ABC):
         pass
 
     @abstractmethod
-    def get_frame_metadata(self, pat: str, frame_url: str) -> Optional[Dict]:
+    def get_frame_metadata(self, pat: str, frame_url: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve comprehensive frame metadata from Figma API.
 
@@ -241,7 +241,8 @@ class IFigmaAPIRepository(ABC):
 
         Usage Example:
             >>> api_repo = FigmaAPIRepository()
-            >>> metadata = api_repo.get_frame_metadata("figd_AbC123...", "https://www.figma.com/file/abc/design?node-id=1:2")
+            >>> frame_url = "https://www.figma.com/file/abc/design?node-id=1:2"
+            >>> metadata = api_repo.get_frame_metadata("figd_AbC123...", frame_url)
             >>> if metadata:
             ...     print(f"Frame name: {metadata['name']}")
             ...     print(f"Frame type: {metadata['type']}")
