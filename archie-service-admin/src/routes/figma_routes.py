@@ -54,7 +54,7 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from flask import Blueprint, make_response, request, jsonify, Response
+from flask import Blueprint, make_response, request, Response
 
 # Import service layer for business logic delegation
 from ..services.figma_service import FigmaService
@@ -214,10 +214,10 @@ def require_authentication(func: Callable) -> Callable:
 def _get_request_user() -> Dict[str, Any]:
     """
     Safely get current user from request context.
-    
+
     This helper function retrieves the current_user attribute that was set by
     the require_authentication decorator. Uses getattr to avoid mypy errors.
-    
+
     :return: Dictionary with user information (user_id, etc.)
     :rtype: Dict[str, Any]
     """
@@ -899,7 +899,8 @@ def revoke_access(installation_id: int) -> Union[Tuple[Dict[str, Any], int], Res
     :rtype: Union[Tuple[Dict[str, Any], int], Response]
     """
     logger.info(
-        f"DELETE /installations/{installation_id}/share - User: {_get_request_user().get('user_id')}"
+        f"DELETE /installations/{installation_id}/share - "
+        f"User: {_get_request_user().get('user_id')}"
     )
 
     try:
@@ -944,7 +945,10 @@ def revoke_access(installation_id: int) -> Union[Tuple[Dict[str, Any], int], Res
             status=400
         )
     except Exception as e:
-        logger.error(f"Error revoking access for installation {installation_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error revoking access for installation {installation_id}: {e}",
+            exc_info=True
+        )
         return _error_response(
             code="INTERNAL_ERROR",
             message="Failed to revoke access",
@@ -995,7 +999,10 @@ def list_access(installation_id: int) -> Tuple[Dict[str, Any], int]:
         service = FigmaService()
         access_list = service.list_installation_access(installation_id)
 
-        logger.info(f"Retrieved {len(access_list)} access grants for installation {installation_id}")
+        logger.info(
+            f"Retrieved {len(access_list)} access grants "
+            f"for installation {installation_id}"
+        )
 
         return _success_response(access_list, status=200)
 
@@ -1200,7 +1207,10 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
             tech_spec_id=tech_spec_id
         )
 
-        logger.info(f"Attached {len([r for r in results if r['success']])} frames to project {project_id}")
+        logger.info(
+            f"Attached {len([r for r in results if r['success']])} frames "
+            f"to project {project_id}"
+        )
 
         return _success_response(results, status=201)
 
