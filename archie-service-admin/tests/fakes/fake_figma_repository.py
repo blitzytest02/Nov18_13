@@ -412,7 +412,7 @@ class FakeFigmaRepository(IFigmaRepository):
             existing_attachment['frame_title'] = frame_title
             existing_attachment['description'] = description
             existing_attachment['tech_spec_id'] = tech_spec_id
-            existing_attachment['created_by'] = created_by
+            # Note: created_by is NOT updated - preserves original creator
             existing_attachment['updated_at'] = datetime.utcnow()
             return deepcopy(existing_attachment)
         else:
