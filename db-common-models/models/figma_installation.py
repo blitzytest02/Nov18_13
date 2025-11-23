@@ -15,7 +15,6 @@ the Figma API.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import (
     Column,
@@ -38,27 +37,27 @@ Base = declarative_base()
 class FigmaInstallation(Base):
     """
     Represents a Figma integration installation for a user or team.
-    
+
     This model stores metadata about a Figma integration connection including
     ownership, naming, and status information. The actual Personal Access Token
     (PAT) is stored separately in Google Secret Manager for security.
-    
+
     Key Relationships:
         - Belongs to a User (owner of the integration)
         - Optionally belongs to a Team
         - Has many FigmaInstallationAccess records (sharing)
         - Has many FigmaAttachment records (design frames)
-    
+
     Security Model:
         - PAT stored in Google Secret Manager as: figma-secret-{installation_id}
         - PAT never exposed through this model or API responses
         - Status field reflects PAT validity (determined via Figma API validation)
-    
+
     Soft Delete:
         - Uses deleted_at timestamp for soft deletion
         - Soft-deleted records should be filtered in queries using:
           .filter(FigmaInstallation.deleted_at.is_(None))
-    
+
     Attributes:
         id: Primary key, auto-incrementing BIGINT
         user_id: Foreign key to users table (owner of the installation)
@@ -72,9 +71,9 @@ class FigmaInstallation(Base):
         user: Relationship to User model (owner)
         team: Relationship to Team model (optional)
     """
-    
+
     __tablename__ = 'figma_installation'
-    
+
     # Primary Key
     id = Column(
         BigInteger,
@@ -83,7 +82,7 @@ class FigmaInstallation(Base):
         nullable=False,
         comment='Primary key for figma_installation table'
     )
-    
+
     # Foreign Keys
     user_id = Column(
         BigInteger,
@@ -92,7 +91,7 @@ class FigmaInstallation(Base):
         index=True,
         comment='Owner of the Figma installation, references users.id'
     )
-    
+
     team_id = Column(
         BigInteger,
         ForeignKey('teams.id', ondelete='SET NULL'),
@@ -100,20 +99,20 @@ class FigmaInstallation(Base):
         index=True,
         comment='Optional team association, references teams.id'
     )
-    
+
     # Data Fields
     name = Column(
         String(255),
         nullable=False,
         comment='Human-readable name for the Figma installation'
     )
-    
+
     description = Column(
         Text,
         nullable=True,
         comment='Optional detailed description of the installation purpose'
     )
-    
+
     status = Column(
         String(50),
         nullable=False,
@@ -121,7 +120,7 @@ class FigmaInstallation(Base):
         server_default='active',
         comment='PAT validity state: active, expired, or disabled'
     )
-    
+
     # Timestamp Fields
     created_at = Column(
         DateTime,
@@ -130,7 +129,7 @@ class FigmaInstallation(Base):
         server_default='now()',
         comment='Timestamp when the installation was created'
     )
-    
+
     updated_at = Column(
         DateTime,
         nullable=False,
@@ -139,20 +138,20 @@ class FigmaInstallation(Base):
         server_default='now()',
         comment='Timestamp when the installation was last updated'
     )
-    
+
     deleted_at = Column(
         DateTime,
         nullable=True,
         index=True,
         comment='Soft delete timestamp, NULL if installation is active'
     )
-    
+
     # Relationships
     # NOTE: These relationships use string references and viewonly=True
     # to avoid requiring User, Team, etc. models to be defined in this package.
     # When integrating with a full application, these can be configured with
     # back_populates on both sides for bidirectional access.
-    
+
     # Commented out to avoid dependency on external models
     # Uncomment and configure back_populates when integrating into full application
     # user = relationship(
@@ -161,14 +160,14 @@ class FigmaInstallation(Base):
     #     viewonly=True,
     #     doc='Owner of the Figma installation'
     # )
-    # 
+    #
     # team = relationship(
     #     'Team',
     #     foreign_keys=[team_id],
     #     viewonly=True,
     #     doc='Optional team associated with the installation'
     # )
-    
+
     # Relationships to other Figma models in this package
     access_grants = relationship(
         'FigmaInstallationAccess',
@@ -177,7 +176,7 @@ class FigmaInstallation(Base):
         lazy='select',
         doc='Access grants for sharing this installation with other users'
     )
-    
+
     attachments = relationship(
         'FigmaAttachment',
         foreign_keys='FigmaAttachment.figma_installation_id',
@@ -185,7 +184,7 @@ class FigmaInstallation(Base):
         lazy='select',
         doc='Figma frame attachments using this installation'
     )
-    
+
     # Indexes for query optimization
     # Additional indexes are defined as table args below
     __table_args__ = (
@@ -213,11 +212,11 @@ class FigmaInstallation(Base):
                        'PAT stored separately in Google Secret Manager.'
         }
     )
-    
+
     def __repr__(self) -> str:
         """
         String representation of FigmaInstallation instance.
-        
+
         Returns:
             Human-readable string showing key identifying information.
             NOTE: Does not include PAT or other sensitive data.
@@ -231,26 +230,26 @@ class FigmaInstallation(Base):
             f"deleted={self.deleted_at is not None}"
             f")>"
         )
-    
+
     def is_active(self) -> bool:
         """
         Check if the installation is active (not soft-deleted).
-        
+
         Returns:
             True if deleted_at is None, False otherwise.
         """
         return self.deleted_at is None
-    
+
     def get_secret_name(self) -> str:
         """
         Generate the Google Secret Manager secret name for this installation's PAT.
-        
+
         This method constructs the secret name following the platform's naming
         convention: figma-secret-<installation_id>
-        
+
         Returns:
             String in format 'figma-secret-{id}' for use with Secret Manager.
-        
+
         Raises:
             ValueError: If installation ID is not set (not yet persisted).
         """
@@ -260,28 +259,28 @@ class FigmaInstallation(Base):
                 "Save the installation to database first."
             )
         return f"figma-secret-{self.id}"
-    
+
     def mark_as_deleted(self) -> None:
         """
         Soft delete this installation by setting deleted_at timestamp.
-        
+
         This method should be called within a transaction context along with
         the corresponding Secret Manager secret deletion to maintain consistency.
-        
+
         Note:
             The caller is responsible for committing the transaction and
             handling Secret Manager deletion.
         """
         self.deleted_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
-    
+
     def update_status(self, new_status: str) -> None:
         """
         Update the PAT status for this installation.
-        
+
         Args:
             new_status: New status value ('active', 'expired', or 'disabled')
-        
+
         Raises:
             ValueError: If new_status is not a valid status value.
         """

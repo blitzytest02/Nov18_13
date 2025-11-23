@@ -1,7 +1,7 @@
 """Add Figma integration tables
 
 Revision ID: 20241123_add_figma_tables
-Revises: 
+Revises:
 Create Date: 2024-11-23
 
 This migration creates three tables for comprehensive Figma integration support:
@@ -26,7 +26,7 @@ depends_on = None
 def upgrade():
     """
     Create Figma integration tables with proper foreign keys, indexes, and constraints.
-    
+
     Tables are created in dependency order to satisfy foreign key constraints.
     """
     # Create figma_installation table
@@ -57,7 +57,7 @@ def upgrade():
         sa.ForeignKeyConstraint(['team_id'], ['teams.id'], name='fk_figma_installation_team'),
         sa.PrimaryKeyConstraint('id', name='pk_figma_installation')
     )
-    
+
     # Create indexes for figma_installation to optimize common queries
     op.create_index(
         'idx_figma_installation_user',
@@ -78,7 +78,7 @@ def upgrade():
         unique=False,
         postgresql_where=sa.text('deleted_at IS NOT NULL')
     )
-    
+
     # Create figma_installation_access table
     # Manages role-based access control for sharing installations across users
     # Mirrors github_installation_access pattern per Agent Action Plan requirement A.2.4
@@ -119,7 +119,7 @@ def upgrade():
             name='uq_figma_access_installation_user_deleted'
         )
     )
-    
+
     # Create indexes for figma_installation_access to optimize access queries
     op.create_index(
         'idx_figma_access_installation',
@@ -140,7 +140,7 @@ def upgrade():
         unique=False,
         postgresql_where=sa.text('deleted_at IS NOT NULL')
     )
-    
+
     # Create figma_attachment table
     # Stores lightweight Figma frame URL attachments to projects
     # Per requirement A.7.2: URL + description only, no file downloads
@@ -187,7 +187,7 @@ def upgrade():
             name='uq_figma_attachment_project_url_deleted'
         )
     )
-    
+
     # Create indexes for figma_attachment to optimize filtering and lookups
     op.create_index(
         'idx_figma_attachment_project',
@@ -219,7 +219,7 @@ def upgrade():
 def downgrade():
     """
     Drop all Figma integration tables and indexes in reverse dependency order.
-    
+
     This ensures proper foreign key constraint handling during rollback.
     """
     # Drop figma_attachment table and its indexes first (has foreign keys to figma_installation)
@@ -228,13 +228,13 @@ def downgrade():
     op.drop_index('idx_figma_attachment_techspec', table_name='figma_attachment')
     op.drop_index('idx_figma_attachment_project', table_name='figma_attachment')
     op.drop_table('figma_attachment')
-    
+
     # Drop figma_installation_access table and its indexes (has foreign key to figma_installation)
     op.drop_index('idx_figma_access_deleted', table_name='figma_installation_access')
     op.drop_index('idx_figma_access_user', table_name='figma_installation_access')
     op.drop_index('idx_figma_access_installation', table_name='figma_installation_access')
     op.drop_table('figma_installation_access')
-    
+
     # Drop figma_installation table and its indexes last (parent table)
     op.drop_index('idx_figma_installation_deleted', table_name='figma_installation')
     op.drop_index('idx_figma_installation_team', table_name='figma_installation')

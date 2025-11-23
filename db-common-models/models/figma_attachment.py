@@ -37,36 +37,36 @@ from .figma_installation import Base
 class FigmaAttachment(Base):
     """
     Represents a Figma design frame attached to a project or technical specification.
-    
+
     This model stores lightweight references to Figma frames via URLs, allowing
     users to associate design assets with their development projects without
     storing actual file content.
-    
+
     Key Relationships:
         - Belongs to a Project via project_id foreign key
         - Optionally belongs to a TechSpec via tech_spec_id foreign key
         - References a FigmaInstallation (defined as ORM relationship)
         - Created by a User via created_by foreign key
-        
+
         Note: Only the FigmaInstallation relationship is defined at the ORM level.
         Relationships to Project, TechSpec, and User should be defined in services
         that use this model where all models share the same SQLAlchemy registry.
-    
+
     Attachment Process:
         1. Frame URL validated against Figma API using installation's PAT
         2. Frame title retrieved from Figma API
         3. URL and metadata stored in database
         4. NO file download or GCS upload occurs
-    
+
     Uniqueness:
         - Same frame URL can only exist once per project (active records)
         - If same URL added again, previous record is updated (upsert behavior)
-    
+
     Soft Delete:
         - Uses deleted_at timestamp for soft deletion
         - Allows frame to be re-attached after deletion
         - Filter using: .filter(FigmaAttachment.deleted_at.is_(None))
-    
+
     Attributes:
         id: Primary key, auto-incrementing BIGINT
         project_id: Foreign key to projects table (required)
@@ -81,9 +81,9 @@ class FigmaAttachment(Base):
         deleted_at: Timestamp when attachment was removed (NULL if active)
         figma_installation: ORM relationship to FigmaInstallation model
     """
-    
+
     __tablename__ = 'figma_attachment'
-    
+
     # Primary Key
     id = Column(
         BigInteger,
@@ -92,7 +92,7 @@ class FigmaAttachment(Base):
         nullable=False,
         comment='Primary key for figma_attachment table'
     )
-    
+
     # Foreign Keys
     project_id = Column(
         BigInteger,
@@ -101,7 +101,7 @@ class FigmaAttachment(Base):
         index=True,
         comment='Project this frame is attached to'
     )
-    
+
     tech_spec_id = Column(
         BigInteger,
         ForeignKey('tech_specs.id', ondelete='CASCADE'),
@@ -109,7 +109,7 @@ class FigmaAttachment(Base):
         index=True,
         comment='Optional technical specification association'
     )
-    
+
     figma_installation_id = Column(
         BigInteger,
         ForeignKey('figma_installation.id', ondelete='CASCADE'),
@@ -117,33 +117,33 @@ class FigmaAttachment(Base):
         index=True,
         comment='Figma installation used to validate and access this frame'
     )
-    
+
     created_by = Column(
         BigInteger,
         ForeignKey('users.id', ondelete='SET NULL'),
         nullable=False,
         comment='User who attached this frame'
     )
-    
+
     # Data Fields
     frame_url = Column(
         Text,
         nullable=False,
         comment='Full Figma frame URL'
     )
-    
+
     frame_title = Column(
         String(500),
         nullable=True,
         comment='Frame title retrieved from Figma API during validation'
     )
-    
+
     description = Column(
         Text,
         nullable=True,
         comment='Optional user-provided description of frame purpose'
     )
-    
+
     # Timestamp Fields
     created_at = Column(
         DateTime,
@@ -152,7 +152,7 @@ class FigmaAttachment(Base):
         server_default='now()',
         comment='Timestamp when frame was attached'
     )
-    
+
     updated_at = Column(
         DateTime,
         nullable=False,
@@ -161,22 +161,22 @@ class FigmaAttachment(Base):
         server_default='now()',
         comment='Timestamp when attachment was last updated'
     )
-    
+
     deleted_at = Column(
         DateTime,
         nullable=True,
         index=True,
         comment='Soft delete timestamp, NULL if attachment is active'
     )
-    
+
     # Relationships
     # NOTE: Relationships to external models (Project, TechSpec, User) are NOT defined here
     # because those models exist in separate packages (archie-service-admin, archie-service-backend).
     # Services that use this model should define those relationships in their own codebase
     # where all models are available in the same SQLAlchemy registry.
-    # 
+    #
     # Only the relationship to FigmaInstallation is defined here since it's in the same package.
-    
+
     figma_installation = relationship(
         'FigmaInstallation',
         foreign_keys=[figma_installation_id],
@@ -184,7 +184,7 @@ class FigmaAttachment(Base):
         lazy='select',
         doc='Figma installation used for this attachment'
     )
-    
+
     # Indexes and constraints for query optimization and data integrity
     __table_args__ = (
         # Unique constraint: One active attachment per frame URL per project
@@ -230,11 +230,11 @@ class FigmaAttachment(Base):
                        'No file downloads - URLs and metadata only.'
         }
     )
-    
+
     def __repr__(self) -> str:
         """
         String representation of FigmaAttachment instance.
-        
+
         Returns:
             Human-readable string showing key identifying information.
         """
@@ -246,29 +246,29 @@ class FigmaAttachment(Base):
             f"deleted={self.deleted_at is not None}"
             f")>"
         )
-    
+
     def is_active(self) -> bool:
         """
         Check if this attachment is active (not soft-deleted).
-        
+
         Returns:
             True if deleted_at is None, False otherwise.
         """
         return self.deleted_at is None
-    
+
     def mark_as_deleted(self) -> None:
         """
         Soft delete this attachment by setting deleted_at timestamp.
-        
+
         This removes the frame reference from the project without permanently
         deleting the record, allowing for audit trail and potential restoration.
-        
+
         Note:
             The caller is responsible for committing the transaction.
         """
         self.deleted_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
-    
+
     def update_metadata(
         self,
         frame_title: Optional[str] = None,
@@ -276,7 +276,7 @@ class FigmaAttachment(Base):
     ) -> None:
         """
         Update attachment metadata.
-        
+
         Args:
             frame_title: New frame title (if None, keeps existing)
             description: New description (if None, keeps existing)

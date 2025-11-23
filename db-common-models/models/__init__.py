@@ -18,7 +18,7 @@ Models:
 
 Usage:
     from models import FigmaInstallation, FigmaInstallationAccess, FigmaAttachment, Base
-    
+
     # All models share the same declarative base for proper relationship resolution
 """
 
