@@ -169,31 +169,35 @@ class FigmaAttachment(Base):
     )
     
     # Relationships
-    # Commented out to avoid dependency on external models
-    # Uncomment and configure back_populates when integrating into full application
-    # project = relationship(
-    #     'Project',
-    #     foreign_keys=[project_id],
-    #     viewonly=True,
-    #     doc='Project this frame is attached to'
-    # )
-    # 
-    # tech_spec = relationship(
-    #     'TechSpec',
-    #     foreign_keys=[tech_spec_id],
-    #     viewonly=True,
-    #     doc='Optional technical specification'
-    # )
-    # 
-    # creator = relationship(
-    #     'User',
-    #     foreign_keys=[created_by],
-    #     viewonly=True,
-    #     doc='User who created this attachment'
-    # )
+    # NOTE: Using string references for external models to avoid import dependencies
+    # These relationships use viewonly=True since back_populates cannot be configured
+    # in this package (Project, TechSpec, User models are external)
+    project = relationship(
+        'Project',
+        foreign_keys=[project_id],
+        viewonly=True,
+        lazy='select',
+        doc='Project this frame is attached to'
+    )
+    
+    tech_spec = relationship(
+        'TechSpec',
+        foreign_keys=[tech_spec_id],
+        viewonly=True,
+        lazy='select',
+        doc='Optional technical specification'
+    )
+    
+    creator = relationship(
+        'User',
+        foreign_keys=[created_by],
+        viewonly=True,
+        lazy='select',
+        doc='User who created this attachment'
+    )
     
     # Relationship to FigmaInstallation model in this package
-    installation = relationship(
+    figma_installation = relationship(
         'FigmaInstallation',
         foreign_keys=[figma_installation_id],
         back_populates='attachments',

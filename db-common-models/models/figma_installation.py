@@ -181,7 +181,7 @@ class FigmaInstallation(Base):
     attachments = relationship(
         'FigmaAttachment',
         foreign_keys='FigmaAttachment.figma_installation_id',
-        back_populates='installation',
+        back_populates='figma_installation',
         lazy='select',
         doc='Figma frame attachments using this installation'
     )
