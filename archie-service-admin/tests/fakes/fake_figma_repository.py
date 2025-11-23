@@ -62,7 +62,7 @@ Transaction Simulation:
 """
 
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -105,7 +105,7 @@ class FakeFigmaRepository(IFigmaRepository):
     Soft Delete Implementation:
         All query methods filter WHERE deleted_at IS NULL by checking if the
         deleted_at field is None. Soft delete operations set deleted_at to
-        datetime.utcnow() without removing records from internal storage.
+        datetime.now(timezone.utc) without removing records from internal storage.
 
     Constraint Enforcement:
         - Unique constraint on (installation_id, user_id) for active access grants
@@ -156,7 +156,7 @@ class FakeFigmaRepository(IFigmaRepository):
         installation_id = self._next_installation_id
         self._next_installation_id += 1
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         installation = {
             "id": installation_id,
             "user_id": user_id,
@@ -223,7 +223,7 @@ class FakeFigmaRepository(IFigmaRepository):
                 installation[key] = value
 
         # Always refresh updated_at timestamp
-        installation["updated_at"] = datetime.utcnow()
+        installation["updated_at"] = datetime.now(timezone.utc)
 
         return dict_to_obj(deepcopy(installation))
 
@@ -244,7 +244,7 @@ class FakeFigmaRepository(IFigmaRepository):
         if installation is None or installation["deleted_at"] is not None:
             return False
 
-        installation["deleted_at"] = datetime.utcnow()
+        installation["deleted_at"] = datetime.now(timezone.utc)
         return True
 
     def delete_installation(self, installation_id: int) -> bool:
@@ -344,7 +344,7 @@ class FakeFigmaRepository(IFigmaRepository):
         access_id = self._next_access_id
         self._next_access_id += 1
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         access_record = {
             "id": access_id,
             "figma_installation_id": installation_id,
@@ -372,7 +372,7 @@ class FakeFigmaRepository(IFigmaRepository):
         :return: True if access revoked, False if no active access found
         """
         revoked = False
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         for access in self._access_records.values():
             if (
@@ -459,14 +459,14 @@ class FakeFigmaRepository(IFigmaRepository):
             existing_attachment["description"] = description
             existing_attachment["tech_spec_id"] = tech_spec_id
             # Note: created_by is NOT updated - preserves original creator
-            existing_attachment["updated_at"] = datetime.utcnow()
+            existing_attachment["updated_at"] = datetime.now(timezone.utc)
             return dict_to_obj(deepcopy(existing_attachment))
         else:
             # Create new attachment
             attachment_id = self._next_attachment_id
             self._next_attachment_id += 1
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             attachment = {
                 "id": attachment_id,
                 "project_id": project_id,
@@ -553,7 +553,7 @@ class FakeFigmaRepository(IFigmaRepository):
         if attachment is None or attachment["deleted_at"] is not None:
             return False
 
-        attachment["deleted_at"] = datetime.utcnow()
+        attachment["deleted_at"] = datetime.now(timezone.utc)
         return True
 
     # ============================================================================
