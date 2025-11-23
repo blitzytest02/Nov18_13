@@ -146,21 +146,36 @@ class FigmaInstallationAccess(Base):
         doc='The Figma installation being shared'
     )
 
-    # Commented out to avoid dependency on external User model
-    # Uncomment and configure back_populates when integrating into full application
-    # user = relationship(
-    #     'User',
-    #     foreign_keys=[user_id],
-    #     viewonly=True,
-    #     doc='User who has been granted access'
-    # )
-    #
-    # grantor = relationship(
-    #     'User',
-    #     foreign_keys=[granted_by],
-    #     viewonly=True,
-    #     doc='User who granted this access'
-    # )
+    # Relationships to User model using string references
+    # These use viewonly=True since back_populates cannot be configured
+    # from this package (User model is external)
+    user = relationship(
+        'User',
+        foreign_keys=[user_id],
+        viewonly=True,
+        doc='User who has been granted access'
+    )
+
+    granter = relationship(
+        'User',
+        foreign_keys=[granted_by],
+        viewonly=True,
+        doc='User who granted this access'
+    )
+
+    @property
+    def figma_installation(self):
+        """
+        Alias for installation relationship to match export specification.
+        
+        This property provides access to the FigmaInstallation object using
+        the name specified in the export interface while maintaining
+        compatibility with the back_populates relationship name.
+        
+        Returns:
+            FigmaInstallation: The Figma installation being shared.
+        """
+        return self.installation
 
     # Indexes and constraints for query optimization and data integrity
     __table_args__ = (
