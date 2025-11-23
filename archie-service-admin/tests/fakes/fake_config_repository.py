@@ -33,7 +33,7 @@ Example Usage in Tests:
 """
 
 from typing import Any, Dict
-from archie_service_admin.src.repositories.interfaces.i_config_repository import IConfigRepository
+from src.repositories.interfaces.i_config_repository import IConfigRepository
 
 
 class FakeConfigRepository(IConfigRepository):
