@@ -65,7 +65,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from copy import deepcopy
 
-from ...src.repositories.interfaces.i_figma_repository import IFigmaRepository
+from src.repositories.interfaces.i_figma_repository import IFigmaRepository
 
 
 class FakeFigmaRepository(IFigmaRepository):
