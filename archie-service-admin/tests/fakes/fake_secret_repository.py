@@ -65,7 +65,7 @@ Thread Safety:
 """
 
 from typing import Dict, Optional
-from archie_service_admin.src.repositories.interfaces.i_secret_repository import ISecretRepository
+from src.repositories.interfaces.i_secret_repository import ISecretRepository
 
 
 class SecretManagerError(Exception):
