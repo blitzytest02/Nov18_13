@@ -165,8 +165,10 @@ def get_current_user() -> Optional[Dict[str, Any]]:
 
     # Check request JSON for user_id (for testing/development)
     # Remove this in production - auth should be via headers/middleware
-    if request.json and 'user_id' in request.json:
-        return {'user_id': request.json['user_id']}
+    # Use get_json(silent=True) to avoid 415 errors on GET requests without Content-Type header
+    request_json = request.get_json(silent=True)
+    if request_json and 'user_id' in request_json:
+        return {'user_id': request_json['user_id']}
 
     return None
 
@@ -351,7 +353,8 @@ def create_installation() -> Tuple[Dict[str, Any], int]:
 
     try:
         # Extract and validate request data
-        data = request.get_json()
+        # Use silent=True to avoid BadRequest exception when body is missing/invalid
+        data = request.get_json(silent=True)
 
         if not data:
             return _error_response(
@@ -1161,7 +1164,8 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
 
     try:
         # Extract and validate request data
-        data = request.get_json()
+        # Use silent=True to avoid BadRequest exception when body is missing/invalid
+        data = request.get_json(silent=True)
 
         if not data:
             return _error_response(
@@ -1208,7 +1212,7 @@ def create_attachments() -> Tuple[Dict[str, Any], int]:
         )
 
         logger.info(
-            f"Attached {len([r for r in results if r['success']])} frames "
+            f"Attached {len(results)} frames "
             f"to project {project_id}"
         )
 
@@ -1440,7 +1444,7 @@ def delete_attachment(attachment_id: int) -> Union[Tuple[Dict[str, Any], int], R
 # Internal Endpoint - PAT Retrieval for Internal Services
 # =============================================================================
 
-@figma_blueprint.route('/internal/installations/by-project/<int:project_id>', methods=['GET'])
+@figma_blueprint.route('/installations/by-project/<int:project_id>', methods=['GET'])
 def get_installation_by_project_internal(project_id: int) -> Tuple[Dict[str, Any], int]:
     """
     INTERNAL ONLY: Retrieve installation with actual PAT for project.

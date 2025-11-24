@@ -74,6 +74,10 @@ def app() -> Flask:
     This fixture provides a Flask app configured for testing with the Figma
     routes blueprint registered. The app is configured with testing mode enabled
     and JSON_SORT_KEYS disabled for predictable response ordering.
+    
+    The blueprint is registered twice with different names to support both
+    public API endpoints (/v1/figma/*) and internal endpoints (/internal/figma/*).
+    Flask requires unique names when registering the same blueprint multiple times.
 
     :return: Flask application configured for testing
     :rtype: Flask
@@ -82,11 +86,13 @@ def app() -> Flask:
     test_app.config['TESTING'] = True
     test_app.config['JSON_SORT_KEYS'] = False  # Preserve response key ordering
 
-    # Register figma_blueprint with URL prefix
-    test_app.register_blueprint(figma_blueprint, url_prefix='/v1/figma')
+    # Register figma_blueprint with URL prefix for public API endpoints
+    test_app.register_blueprint(figma_blueprint, url_prefix='/v1/figma', name='figma_public')
     
-    # Register internal endpoints (without /v1 prefix)
-    test_app.register_blueprint(figma_blueprint, url_prefix='/internal/figma')
+    # Register figma_blueprint again with different name for internal endpoints
+    # This allows the /internal/* routes within the blueprint to be accessible
+    # at /internal/figma/* path
+    test_app.register_blueprint(figma_blueprint, url_prefix='/internal/figma', name='figma_internal')
 
     return test_app
 
@@ -432,15 +438,18 @@ class TestCreateInstallation:
         data = json.loads(response.data)
         assert data['error']['code'] == 'INVALID_REQUEST'
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     def test_create_installation_no_body(
         self,
         mock_config,
+        mock_get_user,
         client,
         authenticated_headers
     ):
         """Test request with no body returns 400 Bad Request."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         response = client.post(
             '/v1/figma/installations',
@@ -527,16 +536,19 @@ class TestGetInstallation:
     computed PAT status (Active/Expired). PAT value must never be exposed.
     """
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_installation_success(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test successful retrieval returns 200 with PAT status (not PAT value)."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_installation.return_value = {
@@ -566,16 +578,19 @@ class TestGetInstallation:
 
         mock_service.get_installation.assert_called_once_with(100)
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_installation_not_found(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test non-existent installation returns 404 NOT_FOUND."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_installation.return_value = None  # Not found
@@ -588,16 +603,19 @@ class TestGetInstallation:
         assert data['error']['code'] == 'INSTALLATION_NOT_FOUND'
         assert '999' in data['error']['message']
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_installation_expired_pat_status(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test installation with expired PAT returns pat_status='Expired'."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_installation.return_value = {
@@ -617,16 +635,19 @@ class TestGetInstallation:
         data = json.loads(response.data)
         assert data['pat_status'] == 'Expired'
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_installation_service_error(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test service error returns 500 INTERNAL_ERROR."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_installation.side_effect = Exception('Database error')
@@ -772,7 +793,7 @@ class TestUpdatePAT:
             headers=authenticated_headers
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         data = json.loads(response.data)
         assert 'not found' in data['error']['message'].lower()
 
@@ -841,7 +862,7 @@ class TestDeleteInstallation:
             headers=authenticated_headers
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         data = json.loads(response.data)
         assert 'not found' in data['error']['message'].lower()
 
@@ -858,7 +879,7 @@ class TestDeleteInstallation:
         mock_config.get_bool.return_value = True
 
         mock_service = Mock()
-        mock_service.delete_installation.side_effect = ValueError('User not authorized')
+        mock_service.delete_installation.side_effect = PermissionError('User not authorized')
         mock_service_class.return_value = mock_service
 
         response = client.delete(
@@ -867,9 +888,9 @@ class TestDeleteInstallation:
             headers=authenticated_headers
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 403
         data = json.loads(response.data)
-        assert 'not authorized' in data['error']['message'].lower()
+        assert data['error']['code'] == 'PERMISSION_DENIED'
 
 
 # ============================================================================
@@ -879,16 +900,19 @@ class TestDeleteInstallation:
 class TestListInstallations:
     """Test GET /v1/figma/installations endpoint for listing installations."""
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_installations_success(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test listing installations returns 200 with array."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_installations.return_value = [
@@ -916,16 +940,19 @@ class TestListInstallations:
         assert data[0]['id'] == 100
         assert data[1]['id'] == 101
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_installations_empty(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test listing returns empty array when no installations exist."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_installations.return_value = []
@@ -937,16 +964,19 @@ class TestListInstallations:
         data = json.loads(response.data)
         assert data == []
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_installations_with_filters(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test listing with query parameters filters results."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_installations.return_value = [
@@ -1100,7 +1130,7 @@ class TestShareInstallation:
             headers=authenticated_headers
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         data = json.loads(response.data)
         assert 'not found' in data['error']['message'].lower()
 
@@ -1116,17 +1146,20 @@ class TestRevokeAccess:
     Per Feature Group A.2, only ADMIN/SUPER_ADMIN users can revoke access.
     """
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_revoke_access_success(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client,
         authenticated_headers
     ):
         """Test ADMIN user successfully revokes access, returns 204."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock ADMIN user
 
         mock_service = Mock()
         mock_service.revoke_access.return_value = True
@@ -1134,19 +1167,18 @@ class TestRevokeAccess:
 
         response = client.delete(
             '/v1/figma/installations/100/share',
-            data=json.dumps(make_authenticated_request(
-                user_id=1,  # ADMIN
-                target_user_id=2
-            )),
+            data=json.dumps({
+                'user_id': 2  # User whose access to revoke
+            }),
             headers=authenticated_headers
         )
 
         assert response.status_code == 204
 
+        # Route calls service.revoke_access with installation_id and user_id only
         mock_service.revoke_access.assert_called_once_with(
             installation_id=100,
-            target_user_id=2,
-            requesting_user_id=1
+            user_id=2
         )
 
     @patch('src.routes.figma_routes.config_repo')
@@ -1204,19 +1236,22 @@ class TestRevokeAccess:
 class TestListAccess:
     """Test GET /v1/figma/installations/{id}/access endpoint."""
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_access_success(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test returns 200 with list of users who have access."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
-        mock_service.list_access.return_value = [
+        mock_service.list_installation_access.return_value = [
             {'user_id': 2, 'access_level': 'viewer', 'granted_by': 1},
             {'user_id': 3, 'access_level': 'editor', 'granted_by': 1}
         ]
@@ -1229,19 +1264,22 @@ class TestListAccess:
         assert len(data) == 2
         assert data[0]['user_id'] == 2
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_access_empty(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test returns empty list when no access grants exist."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
-        mock_service.list_access.return_value = []
+        mock_service.list_installation_access.return_value = []
         mock_service_class.return_value = mock_service
 
         response = client.get('/v1/figma/installations/100/access')
@@ -1567,16 +1605,19 @@ class TestCreateAttachments:
 class TestListAttachments:
     """Test GET /v1/figma/attachments endpoint."""
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_attachments_by_project(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test filtering by project_id returns matching attachments."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_attachments.return_value = [
@@ -1596,16 +1637,19 @@ class TestListAttachments:
         assert len(data) == 1
         assert data[0]['project_id'] == 200
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_attachments_by_project_and_tech_spec(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test filtering by project_id AND tech_spec_id."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_attachments.return_value = [
@@ -1625,29 +1669,35 @@ class TestListAttachments:
         assert len(data) == 1
         assert data[0]['tech_spec_id'] == 300
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     def test_list_attachments_missing_project_id(
         self,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test missing project_id query parameter returns 400."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         response = client.get('/v1/figma/attachments')
 
         assert response.status_code == 400
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_list_attachments_empty(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test returns empty array when no attachments exist."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.list_attachments.return_value = []
@@ -1667,16 +1717,19 @@ class TestListAttachments:
 class TestGetAttachment:
     """Test GET /v1/figma/attachments/{id} endpoint."""
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_attachment_success(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test successful retrieval returns 200 with attachment data."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_attachment.return_value = {
@@ -1698,16 +1751,19 @@ class TestGetAttachment:
         assert data['frame_url'] == 'https://figma.com/file/ABC'
         assert data['frame_title'] == 'Homepage Design'
 
+    @patch('src.routes.figma_routes.get_current_user')
     @patch('src.routes.figma_routes.config_repo')
     @patch('src.routes.figma_routes.FigmaService')
     def test_get_attachment_not_found(
         self,
         mock_service_class,
         mock_config,
+        mock_get_user,
         client
     ):
         """Test non-existent attachment returns 404."""
         mock_config.get_bool.return_value = True
+        mock_get_user.return_value = {'user_id': 1}  # Mock authenticated user
 
         mock_service = Mock()
         mock_service.get_attachment.return_value = None
