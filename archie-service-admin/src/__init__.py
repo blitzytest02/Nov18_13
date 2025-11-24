@@ -127,7 +127,8 @@ Usage Examples:
         ...     user_id=1, name="Test", pat="figd_test_token"
         ... )
         >>> assert fake_figma_repo.installations[installation['id']] is not None
-        >>> assert fake_secret_repo.secrets[f"figma-secret-{installation['id']}"] == "figd_test_token"
+        >>> secret_name = f"figma-secret-{installation['id']}"
+        >>> assert fake_secret_repo.secrets[secret_name] == "figd_test_token"
 
 Feature Overview:
     This package implements comprehensive Figma integration support for the Blitzy
@@ -187,7 +188,7 @@ __all__ = [
     # Service Layer
     # Core business logic class for all Figma integration operations
     "FigmaService",
-    
+
     # Repository Interfaces
     # Abstract base classes defining contracts for external dependencies
     # Used for type hints in service constructors and as base classes for test fakes
@@ -195,7 +196,7 @@ __all__ = [
     "ISecretRepository",
     "IFigmaAPIRepository",
     "IConfigRepository",
-    
+
     # Repository Implementations
     # Concrete classes providing production implementations of repository interfaces
     # Used as default implementations when services initialize without injection
@@ -203,7 +204,7 @@ __all__ = [
     "SecretRepository",
     "FigmaAPIRepository",
     "ConfigRepository",
-    
+
     # Database Models
     # SQLAlchemy ORM models representing Figma integration database entities
     # Used for type hints and return types in repository and service methods
